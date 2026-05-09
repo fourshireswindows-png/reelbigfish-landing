@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Reel Big Fish — The UK's free fishing platform. Live forecasts, best UK venues, AI fishing guide, trip planner and community. Coming soon." />
+  <meta property="og:title" content="Reel Big Fish — Coming Soon" />
+  <meta property="og:description" content="The UK's free fishing platform. Live forecasts, best UK venues, AI guide and more. Sign up for early access." />
+  <title>Reel Big Fish — Coming Soon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700;1,800&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #070d09;
+      --surface:   #0d1710;
+      --surface2:  #111f14;
+      --border:    #1a2e1e;
+      --accent:    #2dd87a;
+      --accent2:   #1a8f4f;
+      --water:     #1a9cc7;
+      --text:      #e8f0ea;
+      --muted:     #6b8a72;
+      --warning:   #d4a72c;
+      --grain:     url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Crimson Pro', Georgia, serif;
+      -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
+    }
+
+    ::-webkit-scrollbar { width: 3px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    /* ── Grain overlay ── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: var(--grain);
+      background-size: 200px 200px;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.6;
+    }
+
+    /* ── Animations ── */
+    @keyframes fadeUp   { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes fadeIn   { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes ripple   { 0%, 100% { transform: scale(1);   opacity: 0.15; } 50% { transform: scale(1.08); opacity: 0.25; } }
+    @keyframes pulse    { 0%, 100% { opacity: 0.4; } 50% { opacity: 1; } }
+    @keyframes shimmer  { 0% { background-position: -200% center; } 100% { background-position: 200% center; } }
+    @keyframes float    { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+
+    .fade-up  { animation: fadeUp  0.7s ease both; }
+    .fade-in  { animation: fadeIn  0.9s ease both; }
+    .delay-1  { animation-delay: 0.1s; }
+    .delay-2  { animation-delay: 0.2s; }
+    .delay-3  { animation-delay: 0.35s; }
+    .delay-4  { animation-delay: 0.5s; }
+    .delay-5  { animation-delay: 0.65s; }
+
+    /* ── Nav ── */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0;
+      z-index: 100;
+      padding: 20px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: linear-gradient(to bottom, var(--bg) 0%, transparent 100%);
+    }
+
+    .logo {
+      display: flex; align-items: center; gap: 12px;
+      text-decoration: none;
+    }
+    .logo-mark {
+      width: 38px; height: 38px; border-radius: 10px;
+      background: linear-gradient(135deg, var(--accent), var(--water));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Playfair Display', serif;
+      font-weight: 900; font-size: 13px; color: #000;
+      letter-spacing: -0.5px;
+    }
+    .logo-text {
+      font-family: 'Playfair Display', serif;
+      font-weight: 800; font-size: 18px; color: var(--text);
+      letter-spacing: -0.3px;
+    }
+    .logo-sub {
+      font-size: 10px; color: var(--muted);
+      font-family: 'DM Mono', monospace;
+      letter-spacing: 1px; text-transform: uppercase;
+      margin-top: -2px;
+    }
+
+    .nav-badge {
+      background: var(--accent2); color: #000;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; font-weight: 500;
+      letter-spacing: 1.5px; text-transform: uppercase;
+      padding: 6px 14px; border-radius: 20px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 120px 24px 80px;
+      position: relative;
+      text-align: center;
+      overflow: hidden;
+    }
+
+    /* Background atmosphere */
+    .hero::after {
+      content: '';
+      position: absolute; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 100%, #0d2a1488 0%, transparent 60%),
+        radial-gradient(ellipse 60% 40% at 20% 50%,  #0e3d2022 0%, transparent 50%),
+        radial-gradient(ellipse 40% 60% at 80% 30%,  #0a2a3a22 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    /* Ripple circles */
+    .ripple-wrap {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      pointer-events: none; overflow: hidden;
+    }
+    .ripple {
+      position: absolute;
+      border-radius: 50%;
+      border: 1px solid var(--accent);
+      animation: ripple 6s ease-in-out infinite;
+    }
+    .ripple:nth-child(1) { width: 300px; height: 300px; animation-delay: 0s; }
+    .ripple:nth-child(2) { width: 500px; height: 500px; animation-delay: 1s; opacity: 0.1; }
+    .ripple:nth-child(3) { width: 700px; height: 700px; animation-delay: 2s; opacity: 0.06; }
+    .ripple:nth-child(4) { width: 900px; height: 900px; animation-delay: 3s; opacity: 0.03; }
+
+    .hero-content { position: relative; z-index: 2; max-width: 820px; }
+
+    .hero-label {
+      display: inline-flex; align-items: center; gap: 8px;
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 28px;
+    }
+    .hero-label::before {
+      content: '';
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 8px var(--accent);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(40px, 6vw, 72px);
+      font-weight: 900;
+      color: var(--text);
+      line-height: 1.1;
+      letter-spacing: -1px;
+      margin-bottom: 24px;
+    }
+    h1 em {
+      font-style: italic;
+      color: var(--accent);
+    }
+
+    .hero-sub {
+      font-size: clamp(17px, 2vw, 21px);
+      color: var(--muted);
+      line-height: 1.7;
+      max-width: 580px;
+      margin: 0 auto 48px;
+      font-weight: 300;
+    }
+
+    /* ── Sign-up tabs ── */
+    .signup-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 8px;
+      max-width: 520px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    .tab-row {
+      display: flex; gap: 4px; margin-bottom: 4px;
+    }
+
+    .tab-btn {
+      flex: 1;
+      background: none; border: none;
+      border-radius: 12px;
+      padding: 12px 16px;
+      cursor: pointer;
+      font-family: 'Crimson Pro', serif;
+      font-size: 15px; font-weight: 600;
+      color: var(--muted);
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .tab-content { display: none; padding: 16px 12px 12px; }
+    .tab-content.active { display: flex; flex-direction: column; gap: 10px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+    input, select, textarea {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 16px;
+      color: var(--text);
+      font-family: 'Crimson Pro', serif;
+      font-size: 15px;
+      outline: none;
+      width: 100%;
+      transition: border-color 0.2s;
+    }
+    input::placeholder { color: var(--muted); }
+    input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+    select { cursor: pointer; }
+    select option { background: var(--surface2); }
+
+    .submit-btn {
+      width: 100%;
+      border: none; border-radius: 12px;
+      padding: 16px;
+      font-family: 'Playfair Display', serif;
+      font-size: 17px; font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: -0.2px;
+    }
+    .submit-btn.angler {
+      background: var(--accent); color: #000;
+    }
+    .submit-btn.venue {
+      background: var(--warning); color: #000;
+    }
+    .submit-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
+    .submit-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; filter: none; }
+
+    .fine-print {
+      font-size: 12px; color: var(--muted);
+      text-align: center; margin-top: 6px;
+      font-family: 'DM Mono', monospace; letter-spacing: 0.3px;
+    }
+
+    .success-msg {
+      display: none;
+      text-align: center; padding: 24px 16px;
+    }
+    .success-msg.show { display: block; }
+    .success-icon { font-size: 40px; margin-bottom: 12px; }
+    .success-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 22px; font-weight: 800;
+      color: var(--accent); margin-bottom: 8px;
+    }
+    .success-body { color: var(--muted); font-size: 15px; line-height: 1.6; }
+
+    /* ── Spots counter ── */
+    .spots-banner {
+      background: linear-gradient(90deg, var(--warning)18, var(--accent2)18);
+      border: 1px solid var(--warning)44;
+      border-radius: 12px;
+      padding: 10px 16px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      margin-bottom: 4px;
+    }
+    .spots-label { font-size: 13px; color: var(--muted); font-family: 'DM Mono', monospace; }
+    .spots-count { font-size: 15px; font-weight: 600; color: var(--warning); font-family: 'DM Mono', monospace; }
+    .spots-bar { flex: 1; background: var(--border); border-radius: 4px; height: 5px; min-width: 80px; }
+    .spots-fill { height: 100%; border-radius: 4px; background: linear-gradient(90deg, var(--accent), var(--warning)); width: 28%; }
+
+    /* ── Scroll indicator ── */
+    .scroll-hint {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 8px;
+      color: var(--muted); font-size: 11px;
+      font-family: 'DM Mono', monospace; letter-spacing: 1px; text-transform: uppercase;
+      animation: float 3s ease-in-out infinite;
+      z-index: 2;
+    }
+    .scroll-line {
+      width: 1px; height: 40px;
+      background: linear-gradient(to bottom, var(--accent), transparent);
+    }
+
+    /* ── Section shared styles ── */
+    section { padding: 100px 24px; position: relative; }
+
+    .section-inner { max-width: 900px; margin: 0 auto; }
+
+    .section-label {
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase;
+      color: var(--accent); margin-bottom: 16px;
+    }
+
+    h2 {
+      font-family: 'Playfair Display', serif;
+      font-size: clamp(28px, 4vw, 44px);
+      font-weight: 800; color: var(--text);
+      line-height: 1.15; letter-spacing: -0.5px;
+      margin-bottom: 16px;
+    }
+
+    .section-sub {
+      font-size: 18px; color: var(--muted);
+      line-height: 1.7; max-width: 560px;
+      font-weight: 300; margin-bottom: 48px;
+    }
+
+    /* ── Features grid ── */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+    }
+
+    .feature-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 28px 24px;
+      transition: all 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .feature-card::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-color, var(--accent)), transparent);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .feature-card:hover { border-color: var(--border); transform: translateY(-3px); }
+    .feature-card:hover::before { opacity: 1; }
+
+    .feature-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; margin-bottom: 16px;
+    }
+    .feature-title {
+      font-family: 'Playfair Display', serif;
+      font-size: 18px; font-weight: 700; color: var(--text);
+      margin-bottom: 8px;
+    }
+    .feature-body {
+      font-size: 15px; color: var(--muted);
+      line-height: 1.7; font-weight: 300;
+    }
+    .feature-tag {
+      display: inline-block; margin-top: 14px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
+      padding: 3px 10px; border-radius: 20px;
+    }
+
+    /* ── Divider ── */
+    .divider {
+      width: 100%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+      margin: 0;
+    }
+
+    /* ── Venue section ── */
+    .venue-section {
+      background: radial-gradient(ellipse 70% 60% at 50% 0%, #0d3a1a22, transparent 60%);
+    }
+
+    .founding-badge {
+      display: inline-flex; align-items: center; gap: 8px;
+      background: var(--warning)18;
+      border: 1px solid var(--warning)55;
+      border-radius: 20px; padding: 6px 16px;
+      font-family: 'DM Mono', monospace;
+      font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase;
+      color: var(--warning); margin-bottom: 20px;
+    }
+
+    .venue-grid {
+      display: grid; grid-template-columns: 1fr 1fr;
+      gap: 16px; margin-bottom: 40px;
+    }
+    .venue-feature {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 14px; padding: 18px;
+    }
+    .venue-feature-icon {
+      width: 36px; height: 36px; border-radius: 10px;
+      background: var(--accent2)33;
+      border: 1px solid var(--accent2)44;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+    }
+    .venue-feature-title { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 3px; }
+    .venue-feature-body { font-size: 14px; color: var(--muted); line-height: 1.5; font-weight: 300; }
+
+    /* ── CTA strip ── */
+    .cta-strip {
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      padding: 60px 24px;
+      text-align: center;
+    }
+    .cta-strip h2 { margin-bottom: 12px; }
+    .cta-strip p { font-size: 17px; color: var(--muted); margin-bottom: 32px; font-weight: 300; }
+    .cta-strip a {
+      display: inline-block;
+      background: var(--accent); color: #000;
+      font-family: 'Playfair Display', serif;
+      font-size: 17px; font-weight: 700;
+      padding: 16px 40px; border-radius: 12px;
+      text-decoration: none; transition: all 0.2s;
+    }
+    .cta-strip a:hover { filter: brightness(1.1); transform: translateY(-2px); }
+
+    /* ── Footer ── */
+    footer {
+      padding: 40px 24px;
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+    }
+    .footer-copy {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; color: var(--muted); letter-spacing: 0.5px;
+    }
+    .footer-links { display: flex; gap: 24px; }
+    .footer-links a {
+      font-family: 'DM Mono', monospace;
+      font-size: 11px; color: var(--muted);
+      text-decoration: none; letter-spacing: 0.5px;
+      transition: color 0.2s;
+    }
+    .footer-links a:hover { color: var(--accent); }
+
+    /* ── Responsive ── */
+    @media (max-width: 700px) {
+      nav { padding: 16px 20px; }
+      .hero { padding: 100px 20px 60px; }
+      h1 { font-size: 36px; letter-spacing: -0.5px; }
+      .features-grid { grid-template-columns: 1fr; }
+      .venue-grid { grid-template-columns: 1fr; }
+      .form-row { grid-template-columns: 1fr; }
+      section { padding: 70px 20px; }
+      footer { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav>
+    <a href="#" class="logo">
+      <div class="logo-mark">RBF</div>
+      <div>
+        <div class="logo-text">Reel Big Fish</div>
+        <div class="logo-sub">Coming Soon</div>
+      </div>
+    </a>
+    <div class="nav-badge">Early Access</div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="ripple-wrap">
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+      <div class="ripple"></div>
+    </div>
+
+    <div class="hero-content">
+      <div class="hero-label fade-up">The UK's Free Fishing Platform</div>
+
+      <h1 class="fade-up delay-1">
+        Every cast.<br />
+        Every condition.<br />
+        <em>Every angler.</em>
+      </h1>
+
+      <p class="hero-sub fade-up delay-2">
+        Live fishing forecasts, the UK's best fishing venues, AI fishing guide, trip planner, community forum and personal fishing diary — all completely free for UK anglers.
+      </p>
+
+      <!-- Sign-up card -->
+      <div class="signup-card fade-up delay-3">
+        <div class="tab-row">
+          <button class="tab-btn active" onclick="switchTab('angler', this)">I'm an Angler</button>
+          <button class="tab-btn" onclick="switchTab('venue', this)">I Run a Fishery</button>
+        </div>
+
+        <!-- Angler tab -->
+        <div class="tab-content active" id="tab-angler">
+          <div id="angler-form">
+            <div class="form-row">
+              <input type="text" id="angler-name" placeholder="Your name" />
+              <input type="email" id="angler-email" placeholder="Email address" required />
+            </div>
+            <select id="angler-region">
+              <option value="">Your region (optional)</option>
+              <option>East Midlands</option><option>East of England</option>
+              <option>London</option><option>North East</option>
+              <option>North West</option><option>South East</option>
+              <option>South West</option><option>West Midlands</option>
+              <option>Yorkshire</option><option>Wales</option>
+              <option>Scotland</option><option>Northern Ireland</option>
+            </select>
+            <button class="submit-btn angler" onclick="submitAngler()">Get Early Access →</button>
+            <div class="fine-print">Free forever · No spam · Unsubscribe anytime</div>
+          </div>
+          <div class="success-msg" id="angler-success">
+            <div class="success-icon">🎣</div>
+            <div class="success-title">You're on the list</div>
+            <div class="success-body">We'll let you know as soon as Reel Big Fish launches. You'll be among the first in.</div>
+          </div>
+        </div>
+
+        <!-- Venue tab -->
+        <div class="tab-content" id="tab-venue">
+          <div id="venue-form">
+            <div class="spots-banner">
+              <div>
+                <div class="spots-label">Founding member spots</div>
+              </div>
+              <div class="spots-bar"><div class="spots-fill"></div></div>
+              <div class="spots-count">36 left</div>
+            </div>
+            <div class="form-row">
+              <input type="text" id="venue-name" placeholder="Your name" />
+              <input type="email" id="venue-email" placeholder="Email address" required />
+            </div>
+            <input type="text" id="venue-fishery" placeholder="Fishery name" />
+            <select id="venue-region">
+              <option value="">Region</option>
+              <option>East Midlands</option><option>East of England</option>
+              <option>London</option><option>North East</option>
+              <option>North West</option><option>South East</option>
+              <option>South West</option><option>West Midlands</option>
+              <option>Yorkshire</option><option>Wales</option>
+              <option>Scotland</option><option>Northern Ireland</option>
+            </select>
+            <button class="submit-btn venue" onclick="submitVenue()">Claim 6 Months Free →</button>
+            <div class="fine-print">No credit card · No commitment · 6 months completely free</div>
+          </div>
+          <div class="success-msg" id="venue-success">
+            <div class="success-icon">✓</div>
+            <div class="success-title">Founding member secured</div>
+            <div class="success-body">We'll be in touch within 48 hours to get your fishery set up. Welcome to Reel Big Fish.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scroll-hint fade-in delay-5">
+      <div class="scroll-line"></div>
+      <span>Discover more</span>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="section-inner">
+      <div class="section-label fade-up">What's Coming</div>
+      <h2 class="fade-up">Built for the way anglers actually fish</h2>
+      <p class="section-sub fade-up">Six tools, one platform, always free. No subscriptions, no paywalls, no adverts.</p>
+
+      <div class="features-grid">
+
+        <div class="feature-card fade-up delay-1" style="--accent-color: #1a9cc7;">
+          <div class="feature-icon" style="background: #1a9cc722; border: 1px solid #1a9cc733;">🌤️</div>
+          <div class="feature-title">Live Fishing Forecast</div>
+          <div class="feature-body">Enter your postcode. Get a real fishing score built from live weather — pressure, wind, temperature, moon phase and more. Know before you go.</div>
+          <div class="feature-tag" style="background: #1a9cc722; color: #1a9cc7; border: 1px solid #1a9cc733;">Live weather data</div>
+        </div>
+
+        <div class="feature-card fade-up delay-2" style="--accent-color: #2dd87a;">
+          <div class="feature-icon" style="background: #2dd87a22; border: 1px solid #2dd87a33;">📍</div>
+          <div class="feature-title">Best UK Venues</div>
+          <div class="feature-body">The UK's best day ticket fisheries, hand-picked and reviewed by real anglers. Full profiles, campsite info, rules and ticket prices — all in one place.</div>
+          <div class="feature-tag" style="background: #2dd87a22; color: #2dd87a; border: 1px solid #2dd87a33;">Hand-picked venues</div>
+        </div>
+
+        <div class="feature-card fade-up delay-3" style="--accent-color: #a78bfa;">
+          <div class="feature-icon" style="background: #a78bfa22; border: 1px solid #a78bfa33;">🤖</div>
+          <div class="feature-title">AI Fishing Guide</div>
+          <div class="feature-body">Ask anything. Species identification, rig setup, bait choice, river reading, regulations. Expert answers in seconds, available around the clock.</div>
+          <div class="feature-tag" style="background: #a78bfa22; color: #a78bfa; border: 1px solid #a78bfa33;">Powered by Claude</div>
+        </div>
+
+        <div class="feature-card fade-up delay-1" style="--accent-color: #fb923c;">
+          <div class="feature-icon" style="background: #fb923c22; border: 1px solid #fb923c33;">🗺️</div>
+          <div class="feature-title">AI Trip Planner</div>
+          <div class="feature-body">Pick a venue, check the forecast, set your nights. The AI builds your complete trip plan — session timetable, bait recommendations, kit checklist, local tips.</div>
+          <div class="feature-tag" style="background: #fb923c22; color: #fb923c; border: 1px solid #fb923c33;">Personalised plans</div>
+        </div>
+
+        <div class="feature-card fade-up delay-2" style="--accent-color: #d4a72c;">
+          <div class="feature-icon" style="background: #d4a72c22; border: 1px solid #d4a72c33;">📔</div>
+          <div class="feature-title">Fishing Diary</div>
+          <div class="feature-body">Log every session. Track every catch. The AI analyses your diary over time to reveal your personal patterns — best conditions, best baits, best methods.</div>
+          <div class="feature-tag" style="background: #d4a72c22; color: #d4a72c; border: 1px solid #d4a72c33;">AI analysis</div>
+        </div>
+
+        <div class="feature-card fade-up delay-3" style="--accent-color: #7ac943;">
+          <div class="feature-icon" style="background: #7ac94322; border: 1px solid #7ac94333;">💬</div>
+          <div class="feature-title">Community Forum</div>
+          <div class="feature-body">Ten dedicated sub-forums covering every type of fishing. Ask questions, share catches, swap venue tips with anglers who actually know.</div>
+          <div class="feature-tag" style="background: #7ac94322; color: #7ac943; border: 1px solid #7ac94333;">Real anglers</div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Venue section -->
+  <section class="venue-section" id="venues">
+    <div class="section-inner">
+      <div class="founding-badge">⭐ Founding Member Offer</div>
+      <h2>Do you run a fishery?</h2>
+      <p class="section-sub">Get your venue in front of thousands of UK anglers — completely free for 6 months. No credit card. No commitment. Just your fishery, listed where anglers are looking.</p>
+
+      <div class="venue-grid">
+        <div class="venue-feature">
+          <div class="venue-feature-icon">📍</div>
+          <div>
+            <div class="venue-feature-title">Full venue profile</div>
+            <div class="venue-feature-body">Photos, description, species, facilities, rules and ticket prices — all in one place.</div>
+          </div>
+        </div>
+        <div class="venue-feature">
+          <div class="venue-feature-icon">⭐</div>
+          <div>
+            <div class="venue-feature-title">Founding member badge</div>
+            <div class="venue-feature-body">Permanently displayed on your listing as one of the original Reel Big Fish venues.</div>
+          </div>
+        </div>
+        <div class="venue-feature">
+          <div class="venue-feature-icon">📊</div>
+          <div>
+            <div class="venue-feature-title">Monthly view reports</div>
+            <div class="venue-feature-body">See exactly how many anglers found your venue through the platform each month.</div>
+          </div>
+        </div>
+        <div class="venue-feature">
+          <div class="venue-feature-icon">🗺️</div>
+          <div>
+            <div class="venue-feature-title">Trip planner feature</div>
+            <div class="venue-feature-body">Your venue appears in the AI trip planner when anglers are planning sessions in your region.</div>
+          </div>
+        </div>
+        <div class="venue-feature">
+          <div class="venue-feature-icon">💬</div>
+          <div>
+            <div class="venue-feature-title">Angler reviews</div>
+            <div class="venue-feature-body">Genuine reviews from anglers who've fished your venue, building your reputation over time.</div>
+          </div>
+        </div>
+        <div class="venue-feature">
+          <div class="venue-feature-icon">🔍</div>
+          <div>
+            <div class="venue-feature-title">Search visibility</div>
+            <div class="venue-feature-body">Listed by region, species and type so anglers searching in your area find you easily.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="background: var(--surface); border: 1px solid var(--warning)44; border-radius: 16px; padding: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 16px;">
+        <div>
+          <div style="font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 4px;">First 50 fisheries get 6 months free</div>
+          <div style="font-size: 15px; color: var(--muted); font-weight: 300;">36 founding member spots remaining — no card, no commitment</div>
+        </div>
+        <button onclick="switchTab('venue', null); document.querySelector('.signup-card').scrollIntoView({behavior:'smooth'})"
+          style="background: var(--warning); color: #000; border: none; border-radius: 12px; padding: 14px 28px; cursor: pointer; font-family: 'Playfair Display', serif; font-size: 17px; font-weight: 700; white-space: nowrap; transition: all 0.2s;">
+          Claim Your Spot →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <div class="divider"></div>
+
+  <!-- Footer -->
+  <footer>
+    <div>
+      <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px;">
+        <div class="logo-mark" style="width: 28px; height: 28px; border-radius: 8px; font-size: 10px;">RBF</div>
+        <span style="font-family: 'Playfair Display', serif; font-weight: 800; font-size: 16px; color: var(--text);">Reel Big Fish</span>
+      </div>
+      <div class="footer-copy">The UK's free fishing platform · Coming soon</div>
+    </div>
+    <div class="footer-links">
+      <a href="mailto:hello@reelbigfish.co.uk">hello@reelbigfish.co.uk</a>
+    </div>
+  </footer>
+
+  <script>
+    const WEBHOOK = "https://hook.eu1.make.com/e4rif83s57n7gcapxymbc75vydg2oaa5";
+
+    // Tab switching
+    function switchTab(id, btn) {
+      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
+      document.getElementById("tab-" + id).classList.add("active");
+      if (btn) btn.classList.add("active");
+      else {
+        document.querySelectorAll(".tab-btn").forEach(b => {
+          if ((id === "angler" && b.textContent.includes("Angler")) ||
+              (id === "venue"  && b.textContent.includes("Fishery"))) {
+            b.classList.add("active");
+          }
+        });
+      }
+    }
+
+    // Angler sign-up
+    async function submitAngler() {
+      const name  = document.getElementById("angler-name").value.trim();
+      const email = document.getElementById("angler-email").value.trim();
+      const region = document.getElementById("angler-region").value;
+      if (!email) return;
+      const btn = document.querySelector(".submit-btn.angler");
+      btn.disabled = true; btn.textContent = "Sending...";
+      try {
+        await fetch(WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "angler_signup", name, email, region, date: new Date().toISOString().split("T")[0] })
+        });
+      } catch {}
+      document.getElementById("angler-form").style.display = "none";
+      document.getElementById("angler-success").classList.add("show");
+    }
+
+    // Venue sign-up
+    async function submitVenue() {
+      const name    = document.getElementById("venue-name").value.trim();
+      const email   = document.getElementById("venue-email").value.trim();
+      const fishery = document.getElementById("venue-fishery").value.trim();
+      const region  = document.getElementById("venue-region").value;
+      if (!email || !fishery) return;
+      const btn = document.querySelector(".submit-btn.venue");
+      btn.disabled = true; btn.textContent = "Sending...";
+      try {
+        await fetch(WEBHOOK, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ type: "founding_venue_signup", name, email, fishery, region, date: new Date().toISOString().split("T")[0] })
+        });
+      } catch {}
+      document.getElementById("venue-form").style.display = "none";
+      document.getElementById("venue-success").classList.add("show");
+    }
+
+    // Scroll reveal
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add("fade-up"); }
+      });
+    }, { threshold: 0.1, rootMargin: "0px 0px -40px 0px" });
+
+    document.querySelectorAll(".feature-card, .venue-feature").forEach(el => {
+      el.style.opacity = "0";
+      observer.observe(el);
+    });
+  </script>
+
+</body>
+</html>
