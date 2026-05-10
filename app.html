@@ -1646,28 +1646,7 @@ function HomePage({ setTab }) {
 
 
 
-const t = {
-  bg: "#0a0f0d", surface: "#111a14", surfaceAlt: "#162019", border: "#1e3024",
-  accent: "#2dd87a", accentDim: "#1a8f4f", water: "#1a9cc7",
-  text: "#e8f0ea", textMuted: "#7a9a82", warning: "#d4a72c", danger: "#c0392b",
-  good: "#7ac943", purple: "#a78bfa", orange: "#fb923c",
-};
-
-const SPECIES = ["Carp","Tench","Bream","Roach","Perch","Pike","Barbel","Chub","Trout","F1 Carp","Ide","Rudd","Crucian Carp","Catfish","Zander","Dace","Grayling","Bass","Cod","Mackerel"];
-const BAITS   = ["Boilies","Sweetcorn","Pellets","Maggots","Casters","Worms","Method Feeder","Bread","Luncheon Meat","Surface Baits","Deadbait","Lures","Feeder Mix","Hemp","Paste"];
-const RIGS    = ["Hair Rig","Method Feeder","Float Rig","Ledger Rig","Running Lead","Chod Rig","Zig Rig","Helicopter Rig","Bolt Rig","Waggler","Stick Float","Inline Lead","Drop Shot","Spod Mix"];
-const SESSION_TYPES = ["Day Ticket","Overnight","Match","River","Canal","Sea","Fly Fishing","Club Water","Free Water","Other"];
-const WATER_CLARITY = ["Crystal Clear","Clear","Slightly Coloured","Coloured","Very Coloured","Murky"];
-const WIND_DIRS = ["N","NE","E","SE","S","SW","W","NW","Calm"];
-const MOON_PHASES = ["New Moon","Waxing Crescent","First Quarter","Waxing Gibbous","Full Moon","Waning Gibbous","Last Quarter","Waning Crescent"];
-
-function getMoonPhase(date) {
-  const known = new Date("2000-01-06");
-  const cycle = 29.53;
-  const diff  = (new Date(date) - known) / (1000 * 60 * 60 * 24);
-  const phase = ((diff % cycle) + cycle) % cycle;
-  return MOON_PHASES[Math.floor((phase / cycle) * 8)];
-}
+const t = theme;
 
 const inp = {
   background: t.surfaceAlt, border: `1px solid ${t.border}`, borderRadius: 10,
