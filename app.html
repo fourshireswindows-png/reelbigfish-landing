@@ -11,6 +11,7 @@
   <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://js.puter.com/v2/"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #0a0f0d; color: #e8f0ea; font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
@@ -568,18 +569,10 @@ function TripPlannerTab() {
     if (!spot || !day) return;
     setLoading(true);
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          system: "You are an expert UK fishing trip planner. Generate concise, practical trip plans for UK anglers. Always include: arrival timing advice, session plan by time of day, top 3 bait/rig recommendations for the conditions, essential kit checklist (8-10 items), one local tip. Be specific and practical. Format with clear sections using emoji headers. Keep total response under 400 words.",
-          messages: [{ role: "user", content: `Plan a ${nights}-night fishing trip to ${spot.name} in ${spot.region}. Fishing day: ${day.day} (${day.date}). Conditions: ${day.rating} (${day.score}/10). Pressure: ${day.pressure}. Wind: ${day.wind}. Temp: ${day.temp}. Water temp: ${day.waterTemp}. Best fishing windows: ${day.bestTime}. Target species: ${day.species.join(", ") || "General coarse"}. Recommended bait: ${day.bait}. Venue notes: ${spot.notes} Campsite: ${spot.campsite}, ${spot.distance} from venue. Give me a complete trip plan including arrival strategy, session timetable, rig/bait setup, and kit checklist.` }]
-        })
-      });
-      const data = await response.json();
-      setTripPlan(data.content?.[0]?.text || "Unable to generate plan.");
+      const systemPrompt = "You are an expert UK fishing trip planner. Generate concise, practical trip plans for UK anglers. Always include: arrival timing advice, session plan by time of day, top 3 bait/rig recommendations for the conditions, essential kit checklist (8-10 items), one local tip. Be specific and practical. Format with clear sections using emoji headers. Keep total response under 400 words.";
+      const userPrompt = `Plan a ${nights}-night fishing trip to ${spot.name} in ${spot.region}. Fishing day: ${day.day} (${day.date}). Conditions: ${day.rating} (${day.score}/10). Pressure: ${day.pressure}. Wind: ${day.wind}. Temp: ${day.temp}. Water temp: ${day.waterTemp}. Best fishing windows: ${day.bestTime}. Target species: ${day.species.join(", ") || "General coarse"}. Recommended bait: ${day.bait}. Venue notes: ${spot.notes} Campsite: ${spot.campsite}, ${spot.distance} from venue. Give me a complete trip plan including arrival strategy, session timetable, rig/bait setup, and kit checklist.`;
+      const response = await puter.ai.chat(userPrompt, { model: "claude-sonnet-4-5", system: systemPrompt });
+      setTripPlan(response?.message?.content?.[0]?.text || response?.toString() || "Unable to generate plan.");
       setStep(4);
     } catch { setTripPlan("Connection error. Please try again."); setStep(4); }
     setLoading(false);
@@ -731,12 +724,10 @@ function ChatTab() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages); setInput(""); setLoading(true);
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 1000, system: "You are an expert UK fishing guide and advisor for Reel Big Fish, a premium UK fishing membership. You have deep knowledge of UK freshwater and sea fishing species, techniques, bait selection, tackle setup, EA regulations, river and lake reading, weather effects on fish behaviour, UK fishing venues, and overnight fishing advice. Be passionate, practical and concise. Give actionable advice. Speak like an experienced angler.", messages: newMessages.map(m => ({ role: m.role, content: m.content })) })
-      });
-      const data = await response.json();
-      setMessages(prev => [...prev, { role: "assistant", content: data.content?.[0]?.text || "Sorry, couldn't get a response." }]);
+      const systemPrompt = "You are an expert UK fishing guide and advisor for Reel Big Fish, a premium UK fishing membership. You have deep knowledge of UK freshwater and sea fishing species, techniques, bait selection, tackle setup, EA regulations, river and lake reading, weather effects on fish behaviour, UK fishing venues, and overnight fishing advice. Be passionate, practical and concise. Give actionable advice. Speak like an experienced angler.";
+      const response = await puter.ai.chat(input, { model: "claude-sonnet-4-5", system: systemPrompt });
+      const reply = response?.message?.content?.[0]?.text || response?.toString() || "Sorry, couldn't get a response.";
+      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch { setMessages(prev => [...prev, { role: "assistant", content: "Connection error. Please try again." }]); }
     setLoading(false);
   };
@@ -2253,17 +2244,8 @@ Write a brief conditions guide (100-150 words) covering: best time of day, best 
     };
 
     try {
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompts[analysisType] }],
-        }),
-      });
-      const data = await res.json();
-      setAnalysis(data.content?.[0]?.text || "Unable to generate analysis.");
+      const response = await puter.ai.chat(prompts[analysisType], { model: "claude-sonnet-4-5" });
+      setAnalysis(response?.message?.content?.[0]?.text || response?.toString() || "Unable to generate analysis.");
     } catch {
       setAnalysis("Connection error. Please try again.");
     }
@@ -2462,8 +2444,8 @@ function DiaryTab() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const p = await window.storage.get("rbf_profile");
-        const s = await window.storage.get("rbf_sessions");
+        const p = { value: localStorage.getItem("rbf_profile") };
+        const s = { value: localStorage.getItem("rbf_sessions") };
         if (p) setProfile(JSON.parse(p.value));
         if (s) setSessions(JSON.parse(s.value));
       } catch {}
@@ -2474,14 +2456,14 @@ function DiaryTab() {
 
   const saveProfile = async (p) => {
     setProfile(p);
-    try { await window.storage.set("rbf_profile", JSON.stringify(p)); } catch {}
+    try { localStorage.setItem("rbf_profile", JSON.stringify(p)); } catch {}
     setView("profile");
   };
 
   const saveSession = async (session) => {
     const updated = [session, ...sessions];
     setSessions(updated);
-    try { await window.storage.set("rbf_sessions", JSON.stringify(updated)); } catch {}
+    try { localStorage.setItem("rbf_sessions", JSON.stringify(updated)); } catch {}
     setPostSave(session);
     setView("postSave");
   };
