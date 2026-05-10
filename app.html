@@ -30,7 +30,7 @@ const { useState, useRef, useEffect } = React;
 // Supabase client
 const SUPABASE_URL = "https://iefnatpzvjoczbrqsytj.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllZm5hdHB6dmpvY3picnFzeXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0Mjg5NzcsImV4cCI6MjA5NDAwNDk3N30.8KrXplbByNasfkBL6ruHslOfVQJb8-wfpWxRuj8zFTw";
-const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sbClient = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const theme = {
   bg: "#0a0f0d", surface: "#111a14", surfaceAlt: "#162019", border: "#1e3024",
@@ -2454,12 +2454,12 @@ function DiaryTab() {
 
   // Check auth on mount
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    sbClient.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setAuthLoading(false);
       if (session?.user) loadUserData(session.user.id);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = sbClient.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null);
       if (session?.user) loadUserData(session.user.id);
     });
@@ -2467,16 +2467,16 @@ function DiaryTab() {
   }, []);
 
   const loadUserData = async (userId) => {
-    const { data: profileData } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    const { data: profileData } = await sbClient.from("profiles").select("*").eq("id", userId).single();
     if (profileData) setProfile(profileData);
-    const { data: sessionData } = await supabase.from("sessions").select("*").eq("user_id", userId).order("date", { ascending: false });
+    const { data: sessionData } = await sbClient.from("sessions").select("*").eq("user_id", userId).order("date", { ascending: false });
     if (sessionData) setSessions(sessionData);
   };
 
   const signUp = async () => {
     setAuthError(""); setAuthMsg("");
     if (!email || !password) { setAuthError("Please enter email and password."); return; }
-    const { error } = await supabase.auth.signUp({ email, password });
+    const { error } = await sbClient.auth.signUp({ email, password });
     if (error) setAuthError(error.message);
     else setAuthMsg("Check your email to confirm your account, then log in.");
   };
@@ -2484,22 +2484,22 @@ function DiaryTab() {
   const signIn = async () => {
     setAuthError(""); setAuthMsg("");
     if (!email || !password) { setAuthError("Please enter email and password."); return; }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await sbClient.auth.signInWithPassword({ email, password });
     if (error) setAuthError(error.message);
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await sbClient.auth.signOut();
     setUser(null); setProfile(null); setSessions([]); setView("profile");
   };
 
   const saveProfile = async (p) => {
-    const { error } = await supabase.from("profiles").upsert({ id: user.id, username: p.username, region: p.region, bio: p.bio, fav_species: p.favSpecies, is_public: p.isPublic });
+    const { error } = await sbClient.from("profiles").upsert({ id: user.id, username: p.username, region: p.region, bio: p.bio, fav_species: p.favSpecies, is_public: p.isPublic });
     if (!error) { setProfile({ ...p, id: user.id }); setView("profile"); }
   };
 
   const saveSession = async (session) => {
-    const { data, error } = await supabase.from("sessions").insert({
+    const { data, error } = await sbClient.from("sessions").insert({
       user_id: user.id,
       date: session.date,
       start_time: session.startTime,
