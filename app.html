@@ -12,6 +12,7 @@
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
   <script src="https://js.puter.com/v2/"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { background: #0a0f0d; color: #e8f0ea; font-family: 'DM Sans', sans-serif; -webkit-font-smoothing: antialiased; }
@@ -25,6 +26,11 @@
   <div id="root"></div>
   <script type="text/babel" data-presets="react">
 const { useState, useRef, useEffect } = React;
+
+// Supabase client
+const SUPABASE_URL = "https://iefnatpzvjoczbrqsytj.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllZm5hdHB6dmpvY3picnFzeXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0Mjg5NzcsImV4cCI6MjA5NDAwNDk3N30.8KrXplbByNasfkBL6ruHslOfVQJb8-wfpWxRuj8zFTw";
+const supabase = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const theme = {
   bg: "#0a0f0d", surface: "#111a14", surfaceAlt: "#162019", border: "#1e3024",
@@ -2434,44 +2440,146 @@ function SessionHistory({ sessions }) {
 
 // ─── MAIN DIARY TAB ────────────────────────────────────────────────────────────
 function DiaryTab() {
-  const [profile, setProfile]   = useState(null);
-  const [sessions, setSessions] = useState([]);
-  const [view, setView]         = useState("profile"); // profile | log | history | analysis | editProfile
-  const [postSave, setPostSave] = useState(null);
-  const [loaded, setLoaded]     = useState(false);
+  const [user, setUser]           = useState(null);
+  const [authView, setAuthView]   = useState("login"); // login | signup
+  const [authLoading, setAuthLoading] = useState(true);
+  const [email, setEmail]         = useState("");
+  const [password, setPassword]   = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authMsg, setAuthMsg]     = useState("");
+  const [profile, setProfile]     = useState(null);
+  const [sessions, setSessions]   = useState([]);
+  const [view, setView]           = useState("profile");
+  const [postSave, setPostSave]   = useState(null);
 
-  // Load from storage
+  // Check auth on mount
   useEffect(() => {
-    const loadData = async () => {
-      try {
-        const p = { value: localStorage.getItem("rbf_profile") };
-        const s = { value: localStorage.getItem("rbf_sessions") };
-        if (p) setProfile(JSON.parse(p.value));
-        if (s) setSessions(JSON.parse(s.value));
-      } catch {}
-      setLoaded(true);
-    };
-    loadData();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      setAuthLoading(false);
+      if (session?.user) loadUserData(session.user.id);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) loadUserData(session.user.id);
+    });
+    return () => subscription.unsubscribe();
   }, []);
 
+  const loadUserData = async (userId) => {
+    const { data: profileData } = await supabase.from("profiles").select("*").eq("id", userId).single();
+    if (profileData) setProfile(profileData);
+    const { data: sessionData } = await supabase.from("sessions").select("*").eq("user_id", userId).order("date", { ascending: false });
+    if (sessionData) setSessions(sessionData);
+  };
+
+  const signUp = async () => {
+    setAuthError(""); setAuthMsg("");
+    if (!email || !password) { setAuthError("Please enter email and password."); return; }
+    const { error } = await supabase.auth.signUp({ email, password });
+    if (error) setAuthError(error.message);
+    else setAuthMsg("Check your email to confirm your account, then log in.");
+  };
+
+  const signIn = async () => {
+    setAuthError(""); setAuthMsg("");
+    if (!email || !password) { setAuthError("Please enter email and password."); return; }
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) setAuthError(error.message);
+  };
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    setUser(null); setProfile(null); setSessions([]); setView("profile");
+  };
+
   const saveProfile = async (p) => {
-    setProfile(p);
-    try { localStorage.setItem("rbf_profile", JSON.stringify(p)); } catch {}
-    setView("profile");
+    const { error } = await supabase.from("profiles").upsert({ id: user.id, username: p.username, region: p.region, bio: p.bio, fav_species: p.favSpecies, is_public: p.isPublic });
+    if (!error) { setProfile({ ...p, id: user.id }); setView("profile"); }
   };
 
   const saveSession = async (session) => {
-    const updated = [session, ...sessions];
-    setSessions(updated);
-    try { localStorage.setItem("rbf_sessions", JSON.stringify(updated)); } catch {}
-    setPostSave(session);
-    setView("postSave");
+    const { data, error } = await supabase.from("sessions").insert({
+      user_id: user.id,
+      date: session.date,
+      start_time: session.startTime,
+      end_time: session.endTime,
+      venue_name: session.venueName,
+      session_type: session.sessionType,
+      target_species: session.targetSpecies,
+      blank: session.blank,
+      total_fish: session.blank ? 0 : session.catches.length,
+      bait_used: session.baitUsed,
+      rig_used: session.rigUsed,
+      weather_condition: session.weatherCondition,
+      wind_direction: session.windDirection,
+      wind_speed: session.windSpeed,
+      temperature: session.temperature,
+      air_pressure: session.airPressure,
+      pressure_trend: session.pressureTrend,
+      moon_phase: session.moonPhase,
+      water_clarity: session.waterClarity,
+      private_notes: session.privateNotes,
+      public_report: session.publicReport,
+      session_rating: session.sessionRating,
+      is_public: session.isPublic,
+      catches: session.catches,
+    }).select().single();
+    if (!error && data) {
+      setSessions(prev => [data, ...prev]);
+      setPostSave(data);
+      setView("postSave");
+    }
   };
 
-  if (!loaded) return (
-    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: t.textMuted }}>Loading your diary...</div>
+  const inp = { background: theme.surfaceAlt, border: `1px solid ${theme.border}`, borderRadius: 10, padding: "12px 16px", color: theme.text, fontSize: 14, fontFamily: "inherit", outline: "none", width: "100%" };
+
+  if (authLoading) return (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 200, color: theme.textMuted }}>Loading...</div>
   );
 
+  // Auth screen
+  if (!user) return (
+    <div style={{ maxWidth: 420, margin: "0 auto", padding: "40px 0" }}>
+      <div style={{ textAlign: "center", marginBottom: 32 }}>
+        <div style={{ fontSize: 28, fontWeight: 900, color: theme.text, fontFamily: "'Playfair Display', serif", marginBottom: 8 }}>
+          {authView === "login" ? "Welcome back" : "Create your account"}
+        </div>
+        <div style={{ color: theme.textMuted, fontSize: 14 }}>
+          {authView === "login" ? "Log in to access your fishing diary" : "Free account — your diary, your data"}
+        </div>
+      </div>
+
+      <div style={{ background: theme.surfaceAlt, border: `1px solid ${theme.border}`, borderRadius: 16, padding: 28, display: "flex", flexDirection: "column", gap: 14 }}>
+        <div>
+          <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>EMAIL</div>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="your@email.com" style={inp} />
+        </div>
+        <div>
+          <div style={{ fontSize: 11, color: theme.textMuted, fontWeight: 700, letterSpacing: 1, marginBottom: 6 }}>PASSWORD</div>
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" style={inp} onKeyDown={e => e.key === "Enter" && (authView === "login" ? signIn() : signUp())} />
+        </div>
+
+        {authError && <div style={{ color: theme.danger, fontSize: 13, background: theme.danger + "11", border: `1px solid ${theme.danger}33`, borderRadius: 8, padding: "8px 12px" }}>{authError}</div>}
+        {authMsg   && <div style={{ color: theme.accent, fontSize: 13, background: theme.accent + "11", border: `1px solid ${theme.accent}33`, borderRadius: 8, padding: "8px 12px" }}>{authMsg}</div>}
+
+        <button onClick={authView === "login" ? signIn : signUp}
+          style={{ background: theme.accent, color: "#000", border: "none", borderRadius: 12, padding: "14px", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 15 }}>
+          {authView === "login" ? "Log In →" : "Create Account →"}
+        </button>
+
+        <div style={{ textAlign: "center", fontSize: 13, color: theme.textMuted }}>
+          {authView === "login" ? (
+            <span>Don't have an account? <button onClick={() => { setAuthView("signup"); setAuthError(""); setAuthMsg(""); }} style={{ background: "none", border: "none", color: theme.accent, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>Sign up free</button></span>
+          ) : (
+            <span>Already have an account? <button onClick={() => { setAuthView("login"); setAuthError(""); setAuthMsg(""); }} style={{ background: "none", border: "none", color: theme.accent, cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600 }}>Log in</button></span>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Profile setup for new users
   if (!profile && view !== "editProfile") return <ProfileSetup onSave={saveProfile} />;
   if (view === "editProfile") return <ProfileSetup onSave={saveProfile} />;
   if (view === "log") return <SessionLogger sessions={sessions} onSave={saveSession} onCancel={() => setView("profile")} />;
@@ -2479,46 +2587,52 @@ function DiaryTab() {
   if (view === "postSave") return (
     <div style={{ maxWidth: 500, margin: "0 auto", textAlign: "center", padding: "40px 0" }}>
       <div style={{ fontSize: 48, marginBottom: 16 }}>✓</div>
-      <div style={{ fontSize: 24, fontWeight: 800, color: t.accent, fontFamily: "'Playfair Display', serif", marginBottom: 8 }}>Session Saved</div>
-      <div style={{ color: t.textMuted, fontSize: 14, marginBottom: 28 }}>{postSave?.blank ? "Blank session logged — useful data for your analysis." : `${postSave?.catches?.length || postSave?.totalFish || 0} fish logged at ${postSave?.venueName}.`}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: theme.accent, fontFamily: "'Playfair Display', serif", marginBottom: 8 }}>Session Saved</div>
+      <div style={{ color: theme.textMuted, fontSize: 14, marginBottom: 28 }}>{postSave?.blank ? "Blank session logged." : `${postSave?.total_fish || 0} fish logged at ${postSave?.venue_name}.`} Your diary is saved to your account.</div>
       <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
-        <button onClick={() => { setView("analysis"); setPostSave(null); }} style={{ background: t.purple, color: "#fff", border: "none", borderRadius: 12, padding: "12px 24px", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 14 }}>View AI Analysis →</button>
-        <button onClick={() => { setView("log"); setPostSave(null); }} style={{ background: t.surfaceAlt, border: `1px solid ${t.border}`, borderRadius: 12, padding: "12px 24px", cursor: "pointer", color: t.textMuted, fontFamily: "inherit", fontSize: 14 }}>Log Another</button>
-        <button onClick={() => { setView("profile"); setPostSave(null); }} style={{ background: "none", border: `1px solid ${t.border}`, borderRadius: 12, padding: "12px 24px", cursor: "pointer", color: t.textMuted, fontFamily: "inherit", fontSize: 14 }}>Back to Profile</button>
+        <button onClick={() => { setView("analysis"); setPostSave(null); }} style={{ background: "#a78bfa", color: "#fff", border: "none", borderRadius: 12, padding: "12px 24px", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 14 }}>View AI Analysis →</button>
+        <button onClick={() => { setView("log"); setPostSave(null); }} style={{ background: theme.surfaceAlt, border: `1px solid ${theme.border}`, borderRadius: 12, padding: "12px 24px", cursor: "pointer", color: theme.textMuted, fontFamily: "inherit", fontSize: 14 }}>Log Another</button>
+        <button onClick={() => { setView("profile"); setPostSave(null); }} style={{ background: "none", border: `1px solid ${theme.border}`, borderRadius: 12, padding: "12px 24px", cursor: "pointer", color: theme.textMuted, fontFamily: "inherit", fontSize: 14 }}>Back to Profile</button>
       </div>
     </div>
   );
 
   const subTabs = [
-    { id: "profile",  label: "Profile"  },
-    { id: "history",  label: "History"  },
-    { id: "analysis", label: "AI Analysis" },
+    { id: "profile",  label: "Profile"      },
+    { id: "history",  label: "History"      },
+    { id: "analysis", label: "AI Analysis"  },
   ];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-      {/* Sub navigation */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-        <div style={{ display: "flex", gap: 0, background: t.surfaceAlt, borderRadius: 12, padding: 4 }}>
+        <div style={{ display: "flex", gap: 0, background: theme.surfaceAlt, borderRadius: 12, padding: 4 }}>
           {subTabs.map(tab => (
             <button key={tab.id} onClick={() => setView(tab.id)}
-              style={{ background: view === tab.id ? t.surface : "none", color: view === tab.id ? t.text : t.textMuted, border: `1px solid ${view === tab.id ? t.border : "transparent"}`, borderRadius: 10, padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, transition: "all 0.2s", whiteSpace: "nowrap" }}>
+              style={{ background: view === tab.id ? theme.surface : "none", color: view === tab.id ? theme.text : theme.textMuted, border: `1px solid ${view === tab.id ? theme.border : "transparent"}`, borderRadius: 10, padding: "8px 16px", cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 600, transition: "all 0.2s", whiteSpace: "nowrap" }}>
               {tab.label}
             </button>
           ))}
         </div>
-        <button onClick={() => setView("log")}
-          style={{ background: t.accent, color: "#000", border: "none", borderRadius: 12, padding: "10px 20px", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap" }}>
-          + Log Session
-        </button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={() => setView("log")}
+            style={{ background: theme.accent, color: "#000", border: "none", borderRadius: 12, padding: "10px 20px", cursor: "pointer", fontFamily: "inherit", fontWeight: 700, fontSize: 13, whiteSpace: "nowrap" }}>
+            + Log Session
+          </button>
+          <button onClick={signOut}
+            style={{ background: "none", border: `1px solid ${theme.border}`, borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontFamily: "inherit", fontSize: 12, color: theme.textMuted }}>
+            Log Out
+          </button>
+        </div>
       </div>
 
-      {view === "profile"  && <ProfileView  profile={profile} sessions={sessions} setView={setView} />}
-      {view === "history"  && <SessionHistory sessions={sessions} />}
-      {view === "analysis" && <AIAnalysis sessions={sessions} profile={profile} />}
+      {view === "profile"  && <ProfileView  profile={{ username: profile.username, region: profile.region, bio: profile.bio, favSpecies: profile.fav_species || [], isPublic: profile.is_public }} sessions={sessions} setView={setView} />}
+      {view === "history"  && <SessionHistory sessions={sessions.map(s => ({ ...s, venueName: s.venue_name, sessionType: s.session_type, totalFish: s.total_fish, startTime: s.start_time, endTime: s.end_time, baitUsed: s.bait_used || [], rigUsed: s.rig_used, weatherCondition: s.weather_condition, windDirection: s.wind_direction, privateNotes: s.private_notes, publicReport: s.public_report, sessionRating: s.session_rating, moonPhase: s.moon_phase }))} />}
+      {view === "analysis" && <AIAnalysis sessions={sessions.map(s => ({ ...s, venueName: s.venue_name, sessionType: s.session_type, totalFish: s.total_fish, baitUsed: s.bait_used || [], rigUsed: s.rig_used, weatherCondition: s.weather_condition, windDirection: s.wind_direction, pressureTrend: s.pressure_trend, sessionRating: s.session_rating, moonPhase: s.moon_phase }))} profile={{ username: profile.username, region: profile.region, favSpecies: profile.fav_species || [] }} />}
     </div>
   );
 }
+
 function ListYourFisheryTab() {
   const TOTAL_SPOTS = 50;
   const SPOTS_TAKEN = 14;
