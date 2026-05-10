@@ -30,7 +30,7 @@ const { useState, useRef, useEffect } = React;
 // Supabase client
 const SUPABASE_URL = "https://iefnatpzvjoczbrqsytj.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllZm5hdHB6dmpvY3picnFzeXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0Mjg5NzcsImV4cCI6MjA5NDAwNDk3N30.8KrXplbByNasfkBL6ruHslOfVQJb8-wfpWxRuj8zFTw";
-const sbClient = supabaseJs.createClient(SUPABASE_URL, SUPABASE_KEY);
+const sbClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const theme = {
   bg: "#0a0f0d", surface: "#111a14", surfaceAlt: "#162019", border: "#1e3024",
