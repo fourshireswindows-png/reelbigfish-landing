@@ -1,13 +1,931 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>rbf-app</title>
-    <script type="module" crossorigin src="/assets/index-BU759K7O.js"></script>
-  </head>
-  <body>
-    <div id="root"></div>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reel Big Fish</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700&family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://js.puter.com/v2/"></script>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    body{background:#0a0f0d;color:#e8f0ea;font-family:'DM Sans',sans-serif;-webkit-font-smoothing:antialiased;}
+    ::-webkit-scrollbar{width:4px;height:4px;}
+    ::-webkit-scrollbar-track{background:#111a14;}
+    ::-webkit-scrollbar-thumb{background:#1e3024;border-radius:4px;}
+    #root{min-height:100vh;}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel" data-presets="react">
+const { useState, useRef, useEffect } = React;
+
+const theme = {
+  bg:"#0a0f0d",surface:"#111a14",surfaceAlt:"#162019",border:"#1e3024",
+  accent:"#2dd87a",accentDim:"#1a8f4f",water:"#1a9cc7",waterDim:"#0e6a8a",
+  text:"#e8f0ea",textMuted:"#7a9a82",warning:"#d4a72c",danger:"#c0392b",
+  excellent:"#2dd87a",good:"#7ac943",fair:"#d4a72c",poor:"#c0392b",purple:"#a78bfa",
+};
+
+const SPECIES=["Carp","Tench","Bream","Roach","Perch","Pike","Barbel","Chub","Trout","F1 Carp","Ide","Rudd","Crucian Carp","Catfish","Zander","Dace","Bass","Mackerel"];
+const BAITS=["Boilies","Sweetcorn","Pellets","Maggots","Casters","Worms","Method Feeder","Bread","Luncheon Meat","Surface Baits","Deadbait","Lures","Hemp","Paste"];
+const RIGS=["Hair Rig","Method Feeder","Float Rig","Running Lead","Chod Rig","Zig Rig","Waggler","Stick Float","Drop Shot","Bolt Rig"];
+const SESSION_TYPES=["Day Ticket","Overnight","Match","River","Canal","Sea","Fly Fishing","Club Water","Free Water","Other"];
+const MOON_PHASES=["New Moon","Waxing Crescent","First Quarter","Waxing Gibbous","Full Moon","Waning Gibbous","Last Quarter","Waning Crescent"];
+const WATER_CLARITY=["Crystal Clear","Clear","Slightly Coloured","Coloured","Very Coloured","Murky"];
+const WIND_DIRS=["N","NE","E","SE","S","SW","W","NW","Calm"];
+
+function getMoonPhase(date){
+  const known=new Date("2000-01-06");
+  const cycle=29.53;
+  const diff=(new Date(date)-known)/(1000*60*60*24);
+  const phase=((diff%cycle)+cycle)%cycle;
+  return MOON_PHASES[Math.floor((phase/cycle)*8)];
+}
+
+const inp={background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:10,padding:"10px 14px",color:theme.text,fontSize:14,fontFamily:"inherit",outline:"none",width:"100%"};
+
+function Chip({label,selected,color=theme.accent,onClick}){
+  return <button onClick={onClick} style={{background:selected?color+"33":theme.surfaceAlt,color:selected?color:theme.textMuted,border:`1px solid ${selected?color:theme.border}`,borderRadius:20,padding:"5px 14px",cursor:"pointer",fontFamily:"inherit",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>{label}</button>;
+}
+
+// FORECAST
+function ForecastTab(){
+  const [postcode,setPostcode]=useState("");
+  const [loading,setLoading]=useState(false);
+  const [forecast,setForecast]=useState(null);
+  const [locationName,setLocationName]=useState("");
+  const [selected,setSelected]=useState(0);
+  const [error,setError]=useState("");
+  const rc=(r)=>r==="Excellent"?theme.excellent:r==="Good"?theme.good:r==="Fair"?theme.fair:theme.poor;
+
+  const fetch7Day=async()=>{
+    const clean=postcode.trim().toUpperCase().replace(/\s+/g,"");
+    if(!clean)return;
+    setLoading(true);setError("");setForecast(null);
+    try{
+      const pc=await fetch(`https://api.postcodes.io/postcodes/${clean}`);
+      const pd=await pc.json();
+      if(pd.status!==200)throw new Error("Invalid postcode");
+      const{latitude:lat,longitude:lng,admin_county,admin_district}=pd.result;
+      setLocationName(admin_county||admin_district||clean);
+      const wx=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,winddirection_10m_dominant,surface_pressure_max,weathercode&timezone=Europe%2FLondon&forecast_days=7`);
+      const wd=await wx.json();
+      const d=wd.daily;
+      const names=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const days=d.time.map((dt,i)=>{
+        const avg=Math.round((d.temperature_2m_max[i]+d.temperature_2m_min[i])/2);
+        const wind=Math.round(d.windspeed_10m_max[i]);
+        const rain=Math.round(d.precipitation_sum[i]*10)/10;
+        const pres=d.surface_pressure_max[i];
+        const trend=i===0?"Stable":pres>d.surface_pressure_max[i-1]+1.5?"Rising":pres<d.surface_pressure_max[i-1]-1.5?"Falling":"Stable";
+        const dirs=["N","NE","E","SE","S","SW","W","NW"];
+        const wdir=dirs[Math.round(d.winddirection_10m_dominant[i]/45)%8];
+        let score=5;
+        if(avg>=12&&avg<=17)score+=2;else if(avg>=9)score+=1;else score-=1;
+        if(wind<10)score+=1.5;else if(wind<20)score+=0.5;else score-=1.5;
+        if(rain===0)score+=0.5;else if(rain<3)score+=0.2;else if(rain<8)score-=1;else score-=2.5;
+        if(trend==="Rising")score+=1.2;else if(trend==="Falling")score-=1;
+        score=Math.min(10,Math.max(1,Math.round(score*10)/10));
+        const rating=score>=8?"Excellent":score>=6.5?"Good":score>=4.5?"Fair":"Poor";
+        const date=new Date(dt);
+        return{day:i===0?"Today":i===1?"Tomorrow":names[date.getDay()],date:dt,score,rating,temp:avg,rain,wind,windDir:wdir,pressure:Math.round(pres),trend,moon:getMoonPhase(dt)};
+      });
+      setForecast(days);setSelected(0);
+    }catch(e){setError(e.message||"Could not fetch forecast. Check your postcode.");}
+    setLoading(false);
+  };
+
+  const day=forecast?.[selected];
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+      <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:16,padding:20}}>
+        <div style={{fontSize:14,fontWeight:700,color:theme.text,marginBottom:12}}>Live fishing forecast for your location</div>
+        <div style={{display:"flex",gap:10}}>
+          <input value={postcode} onChange={e=>setPostcode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&fetch7Day()} placeholder="Enter your postcode — e.g. GL7 1AA" style={{...inp,flex:1}}/>
+          <button onClick={fetch7Day} disabled={loading||!postcode.trim()} style={{background:(!postcode.trim()||loading)?theme.border:theme.accent,color:(!postcode.trim()||loading)?theme.textMuted:"#000",border:"none",borderRadius:10,padding:"10px 20px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14,whiteSpace:"nowrap"}}>{loading?"...":"Check →"}</button>
+        </div>
+        {error&&<div style={{color:theme.danger,fontSize:13,marginTop:8}}>{error}</div>}
+      </div>
+      {forecast&&(
+        <>
+          <div style={{fontSize:13,color:theme.textMuted,fontWeight:600}}>7-day forecast for {locationName}</div>
+          <div style={{display:"flex",gap:6,overflowX:"auto",paddingBottom:4}}>
+            {forecast.map((d,i)=>(
+              <button key={i} onClick={()=>setSelected(i)} style={{background:i===selected?theme.accent+"22":theme.surfaceAlt,border:`1px solid ${i===selected?theme.accent:theme.border}`,borderRadius:12,padding:"10px 14px",cursor:"pointer",textAlign:"center",minWidth:70,flexShrink:0}}>
+                <div style={{fontSize:11,color:theme.textMuted,marginBottom:4}}>{d.day.slice(0,3)}</div>
+                <div style={{fontSize:20,fontWeight:900,color:i===selected?theme.accent:rc(d.rating)}}>{d.score}</div>
+                <div style={{fontSize:10,color:theme.textMuted,marginTop:2}}>{d.temp}°C</div>
+              </button>
+            ))}
+          </div>
+          {day&&(
+            <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:16,padding:24}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:16}}>
+                <div>
+                  <div style={{fontSize:26,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif"}}>{day.day}</div>
+                  <div style={{color:theme.textMuted,fontSize:13}}>{day.date}</div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:36,fontWeight:900,color:rc(day.rating)}}>{day.score}</div>
+                  <span style={{background:rc(day.rating)+"22",color:rc(day.rating),border:`1px solid ${rc(day.rating)}44`,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:600}}>{day.rating}</span>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+                {[{label:"Temperature",value:`${day.temp}°C`,icon:"🌡️"},{label:"Wind",value:`${day.windDir} ${day.wind}km/h`,icon:"💨"},{label:"Pressure",value:`${day.pressure}hPa`,icon:"📊"},{label:"Trend",value:day.trend,icon:day.trend==="Rising"?"↑":day.trend==="Falling"?"↓":"→"},{label:"Moon Phase",value:day.moon,icon:"🌙"},{label:"Rainfall",value:day.rain>0?`${day.rain}mm`:"None",icon:"🌧️"}].map((item,i)=>(
+                  <div key={i} style={{background:theme.surface,borderRadius:10,padding:"10px 14px"}}>
+                    <div style={{fontSize:11,color:theme.textMuted,marginBottom:4}}>{item.icon} {item.label}</div>
+                    <div style={{color:theme.text,fontWeight:600,fontSize:14}}>{item.value}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+// AI GUIDE
+function ChatTab(){
+  const [messages,setMessages]=useState([{role:"assistant",content:"Hello! I'm your Reel Big Fish AI guide. Ask me anything — species ID, rigs, bait, UK regulations, venue tips, or anything else fishing related."}]);
+  const [input,setInput]=useState("");
+  const [loading,setLoading]=useState(false);
+  const bottomRef=useRef(null);
+  useEffect(()=>{bottomRef.current?.scrollIntoView({behavior:"smooth"});},[messages]);
+
+  const send=async()=>{
+    if(!input.trim()||loading)return;
+    setMessages(prev=>[...prev,{role:"user",content:input}]);
+    setInput("");setLoading(true);
+    try{
+      const system="You are an expert UK fishing guide for Reel Big Fish. Deep knowledge of UK freshwater and sea fishing — species, techniques, bait, tackle, EA regulations, river reading, weather effects. Passionate, practical, concise. Give actionable advice. Speak like an experienced angler.";
+      const response=await puter.ai.chat(input,{model:"claude-sonnet-4-5",system});
+      const reply=response?.message?.content?.[0]?.text||response?.toString()||"Sorry, couldn't get a response.";
+      setMessages(prev=>[...prev,{role:"assistant",content:reply}]);
+    }catch{setMessages(prev=>[...prev,{role:"assistant",content:"Connection error. Please try again."}]);}
+    setLoading(false);
+  };
+
+  const sugg=["Best bait for carp in May?","How do I read a river for barbel?","What EA licence do I need?","Best rig for tench?"];
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",height:520}}>
+      <div style={{flex:1,overflowY:"auto",display:"flex",flexDirection:"column",gap:14,padding:"4px 0"}}>
+        {messages.map((m,i)=>(
+          <div key={i} style={{display:"flex",justifyContent:m.role==="user"?"flex-end":"flex-start"}}>
+            {m.role==="assistant"&&<div style={{width:32,height:32,borderRadius:"50%",background:theme.accent+"33",border:`1px solid ${theme.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",marginRight:10,flexShrink:0,marginTop:4,fontSize:16}}>🎣</div>}
+            <div style={{maxWidth:"75%",background:m.role==="user"?theme.accent:theme.surfaceAlt,color:m.role==="user"?"#000":theme.text,borderRadius:m.role==="user"?"18px 18px 4px 18px":"18px 18px 18px 4px",padding:"12px 16px",fontSize:14,lineHeight:1.6,border:m.role==="assistant"?`1px solid ${theme.border}`:"none"}}>{m.content}</div>
+          </div>
+        ))}
+        {loading&&<div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:32,height:32,borderRadius:"50%",background:theme.accent+"33",border:`1px solid ${theme.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🎣</div><div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:"18px 18px 18px 4px",padding:"12px 20px"}}><div style={{display:"flex",gap:4}}>{[0,1,2].map(j=><div key={j} style={{width:6,height:6,borderRadius:"50%",background:theme.accent,animation:`pulse 1.2s ease-in-out infinite`,animationDelay:`${j*0.2}s`}}/>)}</div></div></div>}
+        <div ref={bottomRef}/>
+      </div>
+      {messages.length===1&&<div style={{display:"flex",gap:8,flexWrap:"wrap",padding:"12px 0"}}>{sugg.map((s,i)=><button key={i} onClick={()=>setInput(s)} style={{background:theme.surfaceAlt,color:theme.textMuted,border:`1px solid ${theme.border}`,borderRadius:20,padding:"6px 14px",fontSize:12,cursor:"pointer",fontFamily:"inherit"}}>{s}</button>)}</div>}
+      <div style={{display:"flex",gap:10,marginTop:12}}>
+        <input value={input} onChange={e=>setInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&send()} placeholder="Ask anything about fishing..." style={{flex:1,background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:12,padding:"12px 16px",color:theme.text,fontSize:14,fontFamily:"inherit",outline:"none"}}/>
+        <button onClick={send} disabled={loading||!input.trim()} style={{background:(loading||!input.trim())?theme.border:theme.accent,color:(loading||!input.trim())?theme.textMuted:"#000",border:"none",borderRadius:12,padding:"12px 20px",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>Cast →</button>
+      </div>
+    </div>
+  );
+}
+
+// DIARY
+function DiaryTab(){
+  const [sessions,setSessions]=useState(()=>{try{return JSON.parse(localStorage.getItem("rbf_sessions")||"[]");}catch{return [];}});
+  const [view,setView]=useState("home");
+  const [selectedSession,setSelectedSession]=useState(null);
+  const [analysisText,setAnalysisText]=useState("");
+  const [analysisLoading,setAnalysisLoading]=useState(false);
+  const [step,setStep]=useState(1);
+  const today=new Date().toISOString().split("T")[0];
+
+  const emptyForm={date:today,startTime:"",endTime:"",venueName:"",sessionType:"Day Ticket",targetSpecies:[],blank:false,catches:[],baitUsed:[],rigUsed:"",weatherCondition:"",windDirection:"",windSpeed:"",temperature:"",airPressure:"",pressureTrend:"",moonPhase:getMoonPhase(today),waterClarity:"",privateNotes:"",sessionRating:0,postcode:"",weatherLoading:false};
+  const [form,setForm]=useState(emptyForm);
+  const set=(k,v)=>setForm(p=>({...p,[k]:v}));
+  const toggle=(k,v)=>setForm(p=>({...p,[k]:p[k].includes(v)?p[k].filter(x=>x!==v):[...p[k],v]}));
+
+  const autofill=async()=>{
+    if(!form.postcode)return;
+    set("weatherLoading",true);
+    try{
+      const pc=await fetch(`https://api.postcodes.io/postcodes/${form.postcode.trim().toUpperCase().replace(/\s/g,"")}`);
+      const pd=await pc.json();
+      if(pd.status!==200)throw new Error();
+      const{latitude:lat,longitude:lng}=pd.result;
+      const wx=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,windspeed_10m,winddirection_10m,surface_pressure,weathercode&timezone=Europe%2FLondon`);
+      const wd=await wx.json();
+      const c=wd.current;
+      const dirs=["N","NE","E","SE","S","SW","W","NW"];
+      const codes={0:"Clear",1:"Mainly Clear",2:"Partly Cloudy",3:"Overcast",45:"Foggy",61:"Light Rain",63:"Rain",65:"Heavy Rain",80:"Showers",95:"Thunderstorm"};
+      setForm(p=>({...p,temperature:Math.round(c.temperature_2m).toString(),windSpeed:Math.round(c.windspeed_10m).toString(),windDirection:dirs[Math.round(c.winddirection_10m/45)%8],airPressure:Math.round(c.surface_pressure).toString(),weatherCondition:codes[c.weathercode]||"Variable",weatherLoading:false}));
+    }catch{set("weatherLoading",false);}
+  };
+
+  const addCatch=()=>setForm(p=>({...p,catches:[...p.catches,{species:"",weightLb:"",weightOz:"",notes:""}]}));
+  const setCatch=(i,k,v)=>setForm(p=>{const c=[...p.catches];c[i]={...c[i],[k]:v};return{...p,catches:c};});
+  const removeCatch=(i)=>setForm(p=>({...p,catches:p.catches.filter((_,j)=>j!==i)}));
+
+  const saveSession=()=>{
+    const s={...form,id:Date.now(),totalFish:form.blank?0:form.catches.length};
+    const updated=[s,...sessions];
+    setSessions(updated);
+    localStorage.setItem("rbf_sessions",JSON.stringify(updated));
+    setView("saved");setStep(1);setForm(emptyForm);
+  };
+
+  const runAnalysis=async()=>{
+    if(sessions.length<1)return;
+    setAnalysisLoading(true);setAnalysisText("");
+    const totalFish=sessions.reduce((a,s)=>a+(s.totalFish||0),0);
+    const blanks=sessions.filter(s=>s.blank).length;
+    const baitCount={};
+    sessions.forEach(s=>(s.baitUsed||[]).forEach(b=>{baitCount[b]=(baitCount[b]||0)+1;}));
+    const topBaits=Object.entries(baitCount).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([b,n])=>`${b}(${n})`).join(", ");
+    const recent=sessions.slice(0,10).map(s=>({date:s.date,venue:s.venueName,type:s.sessionType,fish:s.totalFish,blank:s.blank,bait:s.baitUsed?.join(","),rig:s.rigUsed,weather:s.weatherCondition,wind:s.windDirection,temp:s.temperature,pressure:s.airPressure,trend:s.pressureTrend,rating:s.sessionRating}));
+    const prompt=`You are an expert UK fishing coach. Analyse this angler's diary and give personal, practical insights.
+
+Stats: ${sessions.length} sessions, ${totalFish} total fish (${sessions.length>0?(totalFish/sessions.length).toFixed(1):0} avg), ${blanks} blanks (${sessions.length>0?Math.round(blanks/sessions.length*100):0}%). Top baits: ${topBaits||"none"}.
+
+Recent sessions: ${JSON.stringify(recent)}
+
+Confidence: ${sessions.length<3?"LOW - very limited data":sessions.length<8?"MEDIUM":"HIGH"}
+
+Write a personal fishing analysis (150-250 words). Cover: overall performance, what's working, blank patterns, one improvement suggestion. Be honest. Reference actual venues and baits. No bullet points — write in flowing paragraphs. Tone: knowledgeable fishing mate, not a corporate AI.`;
+    try{
+      const response=await puter.ai.chat(prompt,{model:"claude-sonnet-4-5"});
+      setAnalysisText(response?.message?.content?.[0]?.text||response?.toString()||"Unable to generate analysis.");
+    }catch{setAnalysisText("Connection error. Please try again.");}
+    setAnalysisLoading(false);
+  };
+
+  const totalFish=sessions.reduce((a,s)=>a+(s.totalFish||0),0);
+  const blanks=sessions.filter(s=>s.blank).length;
+  const allCatches=sessions.flatMap(s=>s.catches||[]);
+  const pb=allCatches.reduce((best,c)=>{const w=(parseFloat(c.weightLb)||0)+(parseFloat(c.weightOz)||0)/16;const bw=best?(parseFloat(best.weightLb)||0)+(parseFloat(best.weightOz)||0)/16:0;return w>bw?c:best;},null);
+
+  if(view==="home") return(
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{background:`linear-gradient(135deg,${theme.accentDim}33,${theme.water}22)`,border:`1px solid ${theme.accent}44`,borderRadius:20,padding:28}}>
+        <div style={{fontSize:11,color:theme.accent,fontWeight:700,letterSpacing:1.5,marginBottom:12,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Your Fishing Diary</div>
+        <div style={{fontSize:24,fontWeight:900,color:theme.text,fontFamily:"'Playfair Display',serif",marginBottom:8}}>Track. Analyse. Improve.</div>
+        <div style={{color:theme.textMuted,fontSize:14,marginBottom:24,lineHeight:1.7}}>Log every session, track every catch, and let the AI reveal the patterns that help you catch more fish. Your diary is saved on this device.</div>
+        <button onClick={()=>setView("log")} style={{background:theme.accent,color:"#000",border:"none",borderRadius:12,padding:"14px 28px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:15}}>+ Log a Session</button>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
+        {[{label:"SESSIONS",value:sessions.length,sub:"logged",color:theme.accent},{label:"TOTAL FISH",value:totalFish,sub:sessions.length>0?`${(totalFish/sessions.length).toFixed(1)} avg`:"",color:theme.water},{label:"PERSONAL BEST",value:pb?`${pb.weightLb||0}lb ${pb.weightOz||0}oz`:"—",sub:pb?pb.species:"No PBs yet",color:theme.warning},{label:"BLANK RATE",value:sessions.length>0?`${Math.round(blanks/sessions.length*100)}%`:"—",sub:`${blanks} blank${blanks!==1?"s":""}`,color:blanks>0?theme.danger:theme.good}].map((s,i)=>(
+          <div key={i} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:"16px 18px"}}>
+            <div style={{fontSize:10,color:theme.textMuted,fontWeight:700,letterSpacing:1.2,marginBottom:6,fontFamily:"DM Mono,monospace"}}>{s.label}</div>
+            <div style={{fontSize:26,fontWeight:900,color:s.color,fontFamily:"'Playfair Display',serif",lineHeight:1}}>{s.value}</div>
+            {s.sub&&<div style={{fontSize:12,color:theme.textMuted,marginTop:4}}>{s.sub}</div>}
+          </div>
+        ))}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <button onClick={()=>setView("history")} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:18,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+          <div style={{fontSize:22,marginBottom:8}}>📔</div>
+          <div style={{fontWeight:700,color:theme.text,fontSize:15,marginBottom:4}}>Session History</div>
+          <div style={{color:theme.textMuted,fontSize:12}}>{sessions.length} session{sessions.length!==1?"s":""} logged</div>
+        </button>
+        <button onClick={()=>setView("analysis")} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:18,cursor:"pointer",fontFamily:"inherit",textAlign:"left"}}>
+          <div style={{fontSize:22,marginBottom:8}}>🤖</div>
+          <div style={{fontWeight:700,color:theme.text,fontSize:15,marginBottom:4}}>AI Analysis</div>
+          <div style={{color:theme.textMuted,fontSize:12}}>{sessions.length<2?"Log 2+ sessions to unlock":"Patterns from your diary"}</div>
+        </button>
+      </div>
+      {sessions.length>0&&(
+        <div>
+          <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:12,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Recent Sessions</div>
+          {sessions.slice(0,3).map((s,i)=>(
+            <div key={i} onClick={()=>{setSelectedSession(s);setView("detail");}} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:12,padding:"12px 16px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,cursor:"pointer"}}>
+              <div>
+                <div style={{fontWeight:700,color:theme.text,fontSize:14}}>{s.venueName||"Unknown venue"}</div>
+                <div style={{fontSize:12,color:theme.textMuted,marginTop:2}}>{s.date} · {s.sessionType}</div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                {s.blank?<div style={{color:theme.danger,fontWeight:700}}>Blank</div>:<div style={{color:theme.accent,fontWeight:900,fontSize:20}}>{s.totalFish}</div>}
+                {s.sessionRating>0&&<div style={{color:theme.warning,fontSize:12}}>{"★".repeat(s.sessionRating)}</div>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  if(view==="log"){
+    const steps=["Basics","Catches","Conditions","Notes"];
+    return(
+      <div style={{maxWidth:600,margin:"0 auto"}}>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:24}}>
+          <button onClick={()=>setView("home")} style={{background:"none",border:`1px solid ${theme.border}`,borderRadius:8,padding:"6px 12px",color:theme.textMuted,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>← Back</button>
+          <div style={{fontSize:18,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif"}}>Log a Session</div>
+        </div>
+        <div style={{display:"flex",gap:0,marginBottom:24}}>
+          {steps.map((s,i)=>(
+            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:step>i+1?theme.accent:step===i+1?theme.accent+"33":theme.border,border:`2px solid ${step>=i+1?theme.accent:theme.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:800,color:step>i+1?"#000":step===i+1?theme.accent:theme.textMuted}}>{step>i+1?"✓":i+1}</div>
+              <div style={{fontSize:10,color:step===i+1?theme.accent:theme.textMuted,fontFamily:"DM Mono,monospace"}}>{s}</div>
+            </div>
+          ))}
+        </div>
+
+        {step===1&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>DATE *</div><input type="date" value={form.date} onChange={e=>{set("date",e.target.value);set("moonPhase",getMoonPhase(e.target.value));}} style={inp}/></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>SESSION TYPE *</div><select value={form.sessionType} onChange={e=>set("sessionType",e.target.value)} style={{...inp,cursor:"pointer"}}>{SESSION_TYPES.map(st=><option key={st} value={st}>{st}</option>)}</select></div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>START TIME</div><input type="time" value={form.startTime} onChange={e=>set("startTime",e.target.value)} style={inp}/></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>END TIME</div><input type="time" value={form.endTime} onChange={e=>set("endTime",e.target.value)} style={inp}/></div>
+            </div>
+            <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>VENUE NAME *</div><input value={form.venueName} onChange={e=>set("venueName",e.target.value)} placeholder="e.g. Lechlade Fishery, or just 'Local Lake'" style={inp}/></div>
+            <div>
+              <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:10}}>TARGET SPECIES</div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{SPECIES.slice(0,10).map(s=><Chip key={s} label={s} selected={form.targetSpecies.includes(s)} onClick={()=>toggle("targetSpecies",s)}/>)}</div>
+            </div>
+            <div onClick={()=>set("blank",!form.blank)} style={{display:"flex",alignItems:"center",gap:14,background:form.blank?theme.danger+"22":theme.surfaceAlt,border:`1px solid ${form.blank?theme.danger+"44":theme.border}`,borderRadius:12,padding:"14px 18px",cursor:"pointer"}}>
+              <div style={{width:22,height:22,borderRadius:"50%",background:form.blank?theme.danger:theme.border,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,color:"#000",flexShrink:0}}>{form.blank?"✓":""}</div>
+              <div><div style={{fontWeight:700,color:theme.text,fontSize:14}}>Blank session</div><div style={{color:theme.textMuted,fontSize:12}}>No fish caught — still valuable data</div></div>
+            </div>
+          </div>
+        )}
+
+        {step===2&&(
+          <div style={{display:"flex",flexDirection:"column",gap:16}}>
+            {form.blank?(
+              <div style={{background:theme.danger+"11",border:`1px solid ${theme.danger}33`,borderRadius:14,padding:24,textAlign:"center"}}>
+                <div style={{fontSize:32,marginBottom:8}}>🎣</div>
+                <div style={{fontWeight:700,color:theme.text,fontSize:16,fontFamily:"'Playfair Display',serif",marginBottom:6}}>Blank Session</div>
+                <div style={{color:theme.textMuted,fontSize:14}}>These happen to everyone. Your AI will use this to spot patterns.</div>
+              </div>
+            ):(
+              <>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                  <div style={{fontWeight:700,color:theme.text,fontSize:16,fontFamily:"'Playfair Display',serif"}}>Fish Caught</div>
+                  <div style={{fontSize:28,fontWeight:900,color:theme.accent}}>{form.catches.length}</div>
+                </div>
+                {form.catches.map((c,i)=>(
+                  <div key={i} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:16}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                      <div style={{fontWeight:700,color:theme.accent,fontSize:13}}>Fish #{i+1}</div>
+                      <button onClick={()=>removeCatch(i)} style={{background:"none",border:"none",color:theme.textMuted,cursor:"pointer",fontSize:18,padding:0}}>×</button>
+                    </div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 80px 80px",gap:10}}>
+                      <div><div style={{fontSize:10,color:theme.textMuted,marginBottom:4}}>SPECIES</div><select value={c.species} onChange={e=>setCatch(i,"species",e.target.value)} style={{...inp,padding:"8px 10px",fontSize:13,cursor:"pointer"}}><option value="">Species...</option>{SPECIES.map(s=><option key={s} value={s}>{s}</option>)}</select></div>
+                      <div><div style={{fontSize:10,color:theme.textMuted,marginBottom:4}}>LB</div><input type="number" value={c.weightLb} onChange={e=>setCatch(i,"weightLb",e.target.value)} placeholder="0" style={{...inp,padding:"8px 10px",fontSize:13}}/></div>
+                      <div><div style={{fontSize:10,color:theme.textMuted,marginBottom:4}}>OZ</div><input type="number" value={c.weightOz} onChange={e=>setCatch(i,"weightOz",e.target.value)} placeholder="0" style={{...inp,padding:"8px 10px",fontSize:13}}/></div>
+                    </div>
+                  </div>
+                ))}
+                <button onClick={addCatch} style={{background:theme.surfaceAlt,border:`2px dashed ${theme.border}`,borderRadius:14,padding:16,cursor:"pointer",color:theme.textMuted,fontFamily:"inherit",fontSize:14,fontWeight:600,width:"100%"}}>+ Add a Fish</button>
+              </>
+            )}
+            <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:10}}>BAIT USED</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{BAITS.map(b=><Chip key={b} label={b} selected={form.baitUsed.includes(b)} onClick={()=>toggle("baitUsed",b)} color={theme.water}/>)}</div></div>
+            <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:10}}>RIG USED</div><div style={{display:"flex",gap:8,flexWrap:"wrap"}}>{RIGS.map(r=><Chip key={r} label={r} selected={form.rigUsed===r} onClick={()=>set("rigUsed",form.rigUsed===r?"":r)} color={theme.purple}/>)}</div></div>
+          </div>
+        )}
+
+        {step===3&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:16}}>
+              <div style={{fontSize:13,fontWeight:700,color:theme.text,marginBottom:10}}>Autofill weather from your location</div>
+              <div style={{display:"flex",gap:10}}>
+                <input value={form.postcode} onChange={e=>set("postcode",e.target.value)} placeholder="Enter postcode" style={{...inp,flex:1}}/>
+                <button onClick={autofill} disabled={!form.postcode||form.weatherLoading} style={{background:!form.postcode?theme.border:theme.accent,color:!form.postcode?theme.textMuted:"#000",border:"none",borderRadius:10,padding:"10px 16px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13,whiteSpace:"nowrap"}}>{form.weatherLoading?"...":"Fill →"}</button>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>WEATHER</div><input value={form.weatherCondition} onChange={e=>set("weatherCondition",e.target.value)} placeholder="e.g. Overcast" style={inp}/></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>TEMPERATURE °C</div><input type="number" value={form.temperature} onChange={e=>set("temperature",e.target.value)} placeholder="14" style={inp}/></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>WIND DIRECTION</div><select value={form.windDirection} onChange={e=>set("windDirection",e.target.value)} style={{...inp,cursor:"pointer"}}><option value="">Select...</option>{WIND_DIRS.map(d=><option key={d} value={d}>{d}</option>)}</select></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>PRESSURE hPa</div><input type="number" value={form.airPressure} onChange={e=>set("airPressure",e.target.value)} placeholder="1014" style={inp}/></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>PRESSURE TREND</div><select value={form.pressureTrend} onChange={e=>set("pressureTrend",e.target.value)} style={{...inp,cursor:"pointer"}}><option value="">Select...</option>{["Rising","Stable","Falling"].map(p=><option key={p} value={p}>{p}</option>)}</select></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>WATER CLARITY</div><select value={form.waterClarity} onChange={e=>set("waterClarity",e.target.value)} style={{...inp,cursor:"pointer"}}><option value="">Select...</option>{WATER_CLARITY.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+            </div>
+            <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:12,padding:"12px 16px",display:"flex",justifyContent:"space-between"}}>
+              <span style={{color:theme.text,fontSize:13}}>Moon Phase (auto)</span>
+              <span style={{color:theme.accent,fontWeight:700,fontSize:13}}>{form.moonPhase}</span>
+            </div>
+          </div>
+        )}
+
+        {step===4&&(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div>
+              <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>PRIVATE NOTES</div>
+              <div style={{fontSize:12,color:theme.textMuted,marginBottom:6}}>Only visible to you</div>
+              <textarea value={form.privateNotes} onChange={e=>set("privateNotes",e.target.value)} placeholder="Exact peg, tactics that worked, what to try next time..." rows={4} style={{...inp,resize:"vertical"}}/>
+            </div>
+            <div>
+              <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:10}}>SESSION RATING</div>
+              <div style={{display:"flex",gap:8}}>
+                {[1,2,3,4,5].map(n=>(
+                  <button key={n} onClick={()=>set("sessionRating",n)} style={{flex:1,background:form.sessionRating>=n?theme.warning+"33":theme.surfaceAlt,color:form.sessionRating>=n?theme.warning:theme.textMuted,border:`1px solid ${form.sessionRating>=n?theme.warning+"66":theme.border}`,borderRadius:10,padding:"12px 6px",cursor:"pointer",fontFamily:"inherit",fontSize:20}}>★</button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div style={{display:"flex",gap:10,marginTop:24}}>
+          {step>1&&<button onClick={()=>setStep(step-1)} style={{flex:1,background:"none",border:`1px solid ${theme.border}`,borderRadius:12,padding:"14px",color:theme.textMuted,cursor:"pointer",fontFamily:"inherit",fontSize:14}}>← Back</button>}
+          {step<4?<button onClick={()=>setStep(step+1)} disabled={step===1&&!form.venueName} style={{flex:2,background:(step===1&&!form.venueName)?theme.border:theme.accent,color:(step===1&&!form.venueName)?theme.textMuted:"#000",border:"none",borderRadius:12,padding:"14px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14}}>Next →</button>
+          :<button onClick={saveSession} style={{flex:2,background:theme.accent,color:"#000",border:"none",borderRadius:12,padding:"14px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14}}>Save Session ✓</button>}
+        </div>
+      </div>
+    );
+  }
+
+  if(view==="saved") return(
+    <div style={{textAlign:"center",padding:"60px 0"}}>
+      <div style={{fontSize:56,marginBottom:16}}>✓</div>
+      <div style={{fontSize:24,fontWeight:800,color:theme.accent,fontFamily:"'Playfair Display',serif",marginBottom:8}}>Session Saved</div>
+      <div style={{color:theme.textMuted,fontSize:14,marginBottom:32}}>Your diary has been updated.</div>
+      <div style={{display:"flex",gap:10,justifyContent:"center",flexWrap:"wrap"}}>
+        <button onClick={()=>setView("analysis")} style={{background:theme.purple,color:"#fff",border:"none",borderRadius:12,padding:"12px 24px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14}}>View AI Analysis →</button>
+        <button onClick={()=>{setView("log");}} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:12,padding:"12px 24px",cursor:"pointer",color:theme.textMuted,fontFamily:"inherit",fontSize:14}}>Log Another</button>
+        <button onClick={()=>setView("home")} style={{background:"none",border:`1px solid ${theme.border}`,borderRadius:12,padding:"12px 24px",cursor:"pointer",color:theme.textMuted,fontFamily:"inherit",fontSize:14}}>Back to Diary</button>
+      </div>
+    </div>
+  );
+
+  if(view==="history") return(
+    <div>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+        <button onClick={()=>setView("home")} style={{background:"none",border:`1px solid ${theme.border}`,borderRadius:8,padding:"6px 12px",color:theme.textMuted,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>← Back</button>
+        <div style={{fontSize:18,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif"}}>Session History ({sessions.length})</div>
+      </div>
+      {sessions.length===0?(
+        <div style={{background:theme.surfaceAlt,border:`2px dashed ${theme.border}`,borderRadius:16,padding:40,textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:12}}>📔</div>
+          <div style={{fontWeight:700,color:theme.text,fontSize:16,fontFamily:"'Playfair Display',serif",marginBottom:6}}>No sessions yet</div>
+          <div style={{color:theme.textMuted,fontSize:14}}>Log your first session to start building your diary.</div>
+        </div>
+      ):sessions.map((s,i)=>(
+        <div key={i} onClick={()=>{setSelectedSession(s);setView("detail");}} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:"14px 18px",display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,cursor:"pointer"}}>
+          <div>
+            <div style={{fontWeight:700,color:theme.text,fontSize:15}}>{s.venueName||"Unknown venue"}</div>
+            <div style={{fontSize:12,color:theme.textMuted,marginTop:2}}>{s.date} · {s.sessionType}</div>
+            {(s.baitUsed?.length>0||s.rigUsed)&&<div style={{fontSize:11,color:theme.textMuted,marginTop:4}}>{[s.baitUsed?.[0],s.rigUsed].filter(Boolean).join(" · ")}</div>}
+          </div>
+          <div style={{textAlign:"right"}}>
+            {s.blank?<div style={{color:theme.danger,fontWeight:700,fontSize:14}}>Blank</div>:<div style={{color:theme.accent,fontWeight:900,fontSize:22}}>{s.totalFish}</div>}
+            {!s.blank&&<div style={{fontSize:10,color:theme.textMuted}}>fish</div>}
+            {s.sessionRating>0&&<div style={{color:theme.warning,fontSize:11,marginTop:2}}>{"★".repeat(s.sessionRating)}</div>}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  if(view==="detail"&&selectedSession){
+    const s=selectedSession;
+    return(
+      <div>
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:20}}>
+          <button onClick={()=>setView("history")} style={{background:"none",border:`1px solid ${theme.border}`,borderRadius:8,padding:"6px 12px",color:theme.textMuted,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>← Back</button>
+          <div style={{fontSize:18,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif"}}>{s.venueName||"Session Detail"}</div>
+        </div>
+        <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.accent}44`,borderRadius:16,padding:20,display:"flex",flexDirection:"column",gap:14}}>
+          <div style={{color:theme.textMuted,fontSize:13}}>{s.date} · {s.sessionType} {s.startTime&&`· ${s.startTime}${s.endTime?`–${s.endTime}`:""}`}</div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+            <div style={{background:theme.surface,borderRadius:10,padding:12,textAlign:"center"}}><div style={{fontSize:22,fontWeight:900,color:s.blank?theme.danger:theme.accent}}>{s.blank?"0":s.totalFish}</div><div style={{fontSize:11,color:theme.textMuted,marginTop:2}}>{s.blank?"Blank":"Fish"}</div></div>
+            {s.sessionRating>0&&<div style={{background:theme.surface,borderRadius:10,padding:12,textAlign:"center"}}><div style={{color:theme.warning,fontSize:16}}>{"★".repeat(s.sessionRating)}</div><div style={{fontSize:11,color:theme.textMuted,marginTop:4}}>Rating</div></div>}
+            {s.moonPhase&&<div style={{background:theme.surface,borderRadius:10,padding:12,textAlign:"center"}}><div style={{fontSize:12,fontWeight:700,color:theme.text}}>{s.moonPhase}</div><div style={{fontSize:11,color:theme.textMuted,marginTop:2}}>Moon</div></div>}
+          </div>
+          {s.catches?.length>0&&(
+            <div>
+              <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:8}}>CATCHES</div>
+              {s.catches.map((c,i)=>(
+                <div key={i} style={{display:"flex",justifyContent:"space-between",background:theme.surface,borderRadius:8,padding:"8px 12px",marginBottom:4}}>
+                  <span style={{color:theme.text,fontSize:13,fontWeight:600}}>{c.species||"Unknown"}</span>
+                  <span style={{color:theme.accent,fontSize:13,fontWeight:700}}>{c.weightLb||0}lb {c.weightOz||0}oz</span>
+                </div>
+              ))}
+            </div>
+          )}
+          {s.baitUsed?.length>0&&<div style={{fontSize:13,color:theme.textMuted}}>🎣 Bait: {s.baitUsed.join(", ")}</div>}
+          {s.rigUsed&&<div style={{fontSize:13,color:theme.textMuted}}>⚙️ Rig: {s.rigUsed}</div>}
+          {(s.weatherCondition||s.windDirection||s.temperature)&&<div style={{fontSize:13,color:theme.textMuted}}>🌤️ {[s.weatherCondition,s.windDirection&&`${s.windDirection} wind`,s.temperature&&`${s.temperature}°C`,s.pressureTrend&&`Pressure ${s.pressureTrend}`].filter(Boolean).join(" · ")}</div>}
+          {s.privateNotes&&<div style={{background:theme.danger+"11",border:`1px solid ${theme.danger}22`,borderRadius:10,padding:12,fontSize:13,color:theme.textMuted,lineHeight:1.6}}>🔒 <strong style={{color:theme.text}}>Private notes:</strong> {s.privateNotes}</div>}
+        </div>
+      </div>
+    );
+  }
+
+  if(view==="analysis") return(
+    <div style={{display:"flex",flexDirection:"column",gap:20}}>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:4}}>
+        <button onClick={()=>setView("home")} style={{background:"none",border:`1px solid ${theme.border}`,borderRadius:8,padding:"6px 12px",color:theme.textMuted,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>← Back</button>
+        <div style={{fontSize:18,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif"}}>AI Analysis</div>
+      </div>
+      <div style={{background:`linear-gradient(135deg,${theme.purple}22,${theme.accentDim}11)`,border:`1px solid ${theme.purple}44`,borderRadius:20,padding:24}}>
+        <div style={{fontSize:14,color:theme.textMuted,lineHeight:1.6}}>{sessions.length<2?`You've logged ${sessions.length} session${sessions.length!==1?"s":""}. Log at least 2 to unlock your first analysis.`:`Based on ${sessions.length} session${sessions.length!==1?"s":""}. ${sessions.length<5?"Early analysis — patterns sharpen as you log more.":sessions.length<15?"Good data set.":"Strong data set — high confidence."}`}</div>
+        {sessions.length>=1&&<div style={{display:"inline-flex",alignItems:"center",gap:6,background:theme.purple+"33",border:`1px solid ${theme.purple}44`,borderRadius:20,padding:"3px 12px",fontSize:12,color:theme.purple,fontWeight:700,marginTop:12,fontFamily:"DM Mono,monospace"}}>{sessions.length<5?"⚠ Limited data":sessions.length<15?"✓ Good data":"✓ Strong data"}</div>}
+      </div>
+      {sessions.length>=2&&<button onClick={runAnalysis} disabled={analysisLoading} style={{background:analysisLoading?theme.border:theme.purple,color:analysisLoading?theme.textMuted:"#fff",border:"none",borderRadius:12,padding:16,cursor:analysisLoading?"not-allowed":"pointer",fontFamily:"'Playfair Display',serif",fontWeight:700,fontSize:17}}>{analysisLoading?"⏳ Analysing your diary...":"Generate Analysis →"}</button>}
+      {analysisText&&(
+        <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.purple}44`,borderRadius:16,padding:24}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+            <div style={{width:32,height:32,borderRadius:"50%",background:theme.purple+"33",border:`1px solid ${theme.purple}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>🤖</div>
+            <div style={{fontWeight:700,color:theme.text,fontSize:14}}>Your Fishing Analysis</div>
+          </div>
+          <div style={{color:theme.text,fontSize:14,lineHeight:1.9,whiteSpace:"pre-wrap"}}>{analysisText}</div>
+          <div style={{marginTop:16,paddingTop:14,borderTop:`1px solid ${theme.border}`,fontSize:12,color:theme.textMuted,fontFamily:"DM Mono,monospace"}}>Based on {sessions.length} session{sessions.length!==1?"s":""} · {new Date().toLocaleDateString("en-GB")}</div>
+        </div>
+      )}
+      <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:18}}>
+        <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:12,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Your Diary At A Glance</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+          {[{label:"Sessions",value:sessions.length},{label:"Total fish",value:totalFish},{label:"Blank rate",value:sessions.length>0?`${Math.round(blanks/sessions.length*100)}%`:"—"}].map((s,i)=>(
+            <div key={i} style={{textAlign:"center"}}>
+              <div style={{fontSize:24,fontWeight:900,color:theme.accent,fontFamily:"'Playfair Display',serif"}}>{s.value}</div>
+              <div style={{fontSize:11,color:theme.textMuted,marginTop:2}}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  return null;
+}
+
+// FORUM
+function ForumTab(){
+  const [threads,setThreads]=useState(()=>{try{return JSON.parse(localStorage.getItem("rbf_forum")||"[]");}catch{return [];}});
+  const [form,setForm]=useState({category:"",title:"",body:""});
+  const [show,setShow]=useState(false);
+  const [selected,setSelected]=useState(null);
+  const cats=[{id:"carp",name:"Carp Fishing",icon:"🐟"},{id:"match",name:"Match & Commercial",icon:"🏆"},{id:"coarse",name:"General Coarse",icon:"🎣"},{id:"pike",name:"Pike & Predator",icon:"🦷"},{id:"sea",name:"Sea Fishing",icon:"🌊"},{id:"beginners",name:"Beginners Corner",icon:"🌱"},{id:"tackle",name:"Tackle Talk",icon:"🔧"},{id:"venues",name:"Venue Reviews",icon:"📍"}];
+
+  const post=()=>{
+    if(!form.title||!form.body||!form.category)return;
+    const t={...form,id:Date.now(),date:new Date().toLocaleDateString("en-GB"),author:"You"};
+    const updated=[t,...threads];
+    setThreads(updated);localStorage.setItem("rbf_forum",JSON.stringify(updated));
+    setForm({category:"",title:"",body:""});setShow(false);
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div style={{fontSize:18,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif"}}>Fishing Forum</div>
+        <button onClick={()=>setShow(!show)} style={{background:theme.accent,color:"#000",border:"none",borderRadius:10,padding:"8px 18px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13}}>+ New Post</button>
+      </div>
+      {show&&(
+        <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:16,padding:20,marginBottom:20,display:"flex",flexDirection:"column",gap:12}}>
+          <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} style={{...inp,cursor:"pointer"}}><option value="">Select category...</option>{cats.map(c=><option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}</select>
+          <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="Thread title..." style={inp}/>
+          <textarea value={form.body} onChange={e=>setForm(p=>({...p,body:e.target.value}))} placeholder="Ask a question, share a catch report, give venue advice..." rows={4} style={{...inp,resize:"vertical"}}/>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={post} disabled={!form.title||!form.body||!form.category} style={{flex:2,background:(!form.title||!form.body||!form.category)?theme.border:theme.accent,color:(!form.title||!form.body||!form.category)?theme.textMuted:"#000",border:"none",borderRadius:10,padding:"12px",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Post Thread</button>
+            <button onClick={()=>setShow(false)} style={{flex:1,background:"none",border:`1px solid ${theme.border}`,borderRadius:10,padding:"12px",cursor:"pointer",color:theme.textMuted,fontFamily:"inherit"}}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {threads.length===0?(
+        <div>
+          <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:16,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Categories</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>{cats.map(c=><div key={c.id} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:16}}><div style={{fontSize:20,marginBottom:8}}>{c.icon}</div><div style={{fontWeight:700,color:theme.text,fontSize:14,marginBottom:4}}>{c.name}</div><div style={{fontSize:12,color:theme.textMuted,fontStyle:"italic"}}>Be the first to post</div></div>)}</div>
+        </div>
+      ):threads.map((t,i)=>{
+        const cat=cats.find(c=>c.id===t.category);
+        return(
+          <div key={i} onClick={()=>setSelected(selected===i?null:i)} style={{background:theme.surfaceAlt,border:`1px solid ${selected===i?theme.accent:theme.border}`,borderRadius:14,padding:18,cursor:"pointer",marginBottom:10}}>
+            {cat&&<span style={{background:theme.accent+"22",color:theme.accent,border:`1px solid ${theme.accent}33`,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:600,marginBottom:8,display:"inline-block"}}>{cat.icon} {cat.name}</span>}
+            <div style={{fontWeight:700,color:theme.text,fontSize:15,marginTop:4}}>{t.title}</div>
+            <div style={{fontSize:12,color:theme.textMuted,marginTop:2}}>{t.author} · {t.date}</div>
+            {selected===i&&<div style={{color:theme.textMuted,fontSize:14,lineHeight:1.7,borderTop:`1px solid ${theme.border}`,paddingTop:12,marginTop:10}}>{t.body}</div>}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// COMMUNITY
+function CommunityTab(){
+  const [posts,setPosts]=useState(()=>{try{return JSON.parse(localStorage.getItem("rbf_community")||"[]");}catch{return [];}});
+  const [form,setForm]=useState({title:"",body:"",category:"Catch Reports"});
+  const [show,setShow]=useState(false);
+  const cats=["Catch Reports","Ask a Question","Venue Tips","Tackle Talk","General Chat"];
+
+  const addPost=()=>{
+    if(!form.title||!form.body)return;
+    const p={...form,id:Date.now(),date:new Date().toLocaleDateString("en-GB"),author:"You"};
+    const updated=[p,...posts];
+    setPosts(updated);localStorage.setItem("rbf_community",JSON.stringify(updated));
+    setForm({title:"",body:"",category:"Catch Reports"});setShow(false);
+  };
+
+  return(
+    <div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+        <div style={{fontSize:18,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif"}}>Community</div>
+        <button onClick={()=>setShow(!show)} style={{background:theme.accent,color:"#000",border:"none",borderRadius:10,padding:"8px 18px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13}}>+ Share</button>
+      </div>
+      {show&&(
+        <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:16,padding:20,marginBottom:20,display:"flex",flexDirection:"column",gap:12}}>
+          <select value={form.category} onChange={e=>setForm(p=>({...p,category:e.target.value}))} style={{...inp,cursor:"pointer"}}>{cats.map(c=><option key={c} value={c}>{c}</option>)}</select>
+          <input value={form.title} onChange={e=>setForm(p=>({...p,title:e.target.value}))} placeholder="Title..." style={inp}/>
+          <textarea value={form.body} onChange={e=>setForm(p=>({...p,body:e.target.value}))} placeholder="Share your catch, ask a question..." rows={4} style={{...inp,resize:"vertical"}}/>
+          <div style={{display:"flex",gap:10}}>
+            <button onClick={addPost} disabled={!form.title||!form.body} style={{flex:2,background:(!form.title||!form.body)?theme.border:theme.accent,color:(!form.title||!form.body)?theme.textMuted:"#000",border:"none",borderRadius:10,padding:"12px",cursor:"pointer",fontFamily:"inherit",fontWeight:700}}>Post</button>
+            <button onClick={()=>setShow(false)} style={{flex:1,background:"none",border:`1px solid ${theme.border}`,borderRadius:10,padding:"12px",cursor:"pointer",color:theme.textMuted,fontFamily:"inherit"}}>Cancel</button>
+          </div>
+        </div>
+      )}
+      {posts.length===0?(
+        <div style={{background:theme.surfaceAlt,border:`2px dashed ${theme.border}`,borderRadius:16,padding:40,textAlign:"center"}}>
+          <div style={{fontSize:36,marginBottom:12}}>💬</div>
+          <div style={{fontWeight:700,color:theme.text,fontSize:16,fontFamily:"'Playfair Display',serif",marginBottom:8}}>No posts yet</div>
+          <div style={{color:theme.textMuted,fontSize:14,marginBottom:20}}>Be the first. Share a catch, ask a question, or give venue advice.</div>
+          <button onClick={()=>setShow(true)} style={{background:theme.accent,color:"#000",border:"none",borderRadius:10,padding:"10px 24px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:13}}>Start the conversation</button>
+        </div>
+      ):posts.map((p,i)=>(
+        <div key={i} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:18,marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+            <span style={{background:theme.accent+"22",color:theme.accent,border:`1px solid ${theme.accent}33`,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:600}}>{p.category}</span>
+            <span style={{fontSize:12,color:theme.textMuted}}>{p.date}</span>
+          </div>
+          <div style={{fontWeight:700,color:theme.text,fontSize:15,marginBottom:6}}>{p.title}</div>
+          <div style={{color:theme.textMuted,fontSize:13,lineHeight:1.7}}>{p.body}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// REPORT
+function ReportTab(){
+  const month=new Date().toLocaleString("en-GB",{month:"long",year:"numeric"});
+  const sections=[
+    {icon:"🌡️",title:"Conditions Overview",content:"Water temperatures across UK stillwaters are rising through 10–14°C — the sweet spot for carp and tench activity. Expect aggressive feeding spells at dawn and dusk as fish move into shallower, warmer margins. Barometric pressure has been generally stable, favouring consistent sport."},
+    {icon:"🐟",title:"Species in Focus: Tench",content:"May is arguably the finest month for tench fishing in the UK. Fish are pre-spawn, feeding heavily. Target lily pad margins and weed bed edges with sweetcorn, worms, and method feeder rigs. First and last light produces most takes. Specimens of 6lb+ are realistic on well-stocked venues."},
+    {icon:"🎣",title:"Technique of the Month: Margin Fishing",content:"As water warms, fish migrate to the margins predictably. A simple float rig with a size 12 hook, 6lb line, and sweetcorn dropped tight against marginal reeds will outperform open water methods significantly. Fish will often be in just 18 inches of water."},
+    {icon:"📋",title:"Regulation Reminder",content:"The river close season runs 15 March to 15 June on most English rivers. Stillwaters and canals remain open year-round. Ensure your EA rod licence is valid. A one-rod licence costs £33/year. Two-rod licences cost £47. Junior licences (under 17) are free."},
+  ];
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:16}}>
+      <div style={{background:`linear-gradient(135deg,${theme.accentDim}33,${theme.waterDim}33)`,border:`1px solid ${theme.accent}44`,borderRadius:16,padding:24}}>
+        <div style={{fontSize:11,color:theme.accent,fontWeight:700,letterSpacing:2,marginBottom:8,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Monthly Report</div>
+        <div style={{fontSize:28,fontWeight:900,color:theme.text,fontFamily:"'Playfair Display',serif"}}>{month}</div>
+        <div style={{color:theme.textMuted,marginTop:6,fontSize:14}}>Seasonal conditions, species in focus, technique of the month and regulation reminders.</div>
+      </div>
+      {sections.map((s,i)=>(
+        <div key={i} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:20}}>
+          <div style={{fontSize:17,marginBottom:10}}>{s.icon} <span style={{fontWeight:700,color:theme.text,fontFamily:"'Playfair Display',serif"}}>{s.title}</span></div>
+          <div style={{color:theme.textMuted,fontSize:14,lineHeight:1.8}}>{s.content}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// LIST YOUR FISHERY
+function ListYourFisheryTab(){
+  const [form,setForm]=useState({name:"",email:"",fishery:"",phone:"",region:"",message:""});
+  const [status,setStatus]=useState("idle");
+  const set=(f,v)=>setForm(p=>({...p,[f]:v}));
+  const regions=["East Midlands","East of England","London","North East","North West","South East","South West","West Midlands","Yorkshire","Wales","Scotland","Northern Ireland"];
+
+  const submit=async()=>{
+    if(!form.name||!form.email||!form.fishery)return;
+    setStatus("loading");
+    try{
+      await fetch("https://formspree.io/f/mpqbowne",{method:"POST",headers:{"Content-Type":"application/json","Accept":"application/json"},body:JSON.stringify({type:"founding_member_enquiry",...form,date:new Date().toISOString().split("T")[0]})});
+      setStatus("success");
+    }catch{setStatus("error");}
+  };
+
+  return(
+    <div style={{display:"flex",flexDirection:"column",gap:24}}>
+      <div style={{background:`linear-gradient(135deg,${theme.warning}22,${theme.accentDim}22)`,border:`1px solid ${theme.warning}55`,borderRadius:20,padding:28,textAlign:"center"}}>
+        <div style={{fontSize:11,color:theme.warning,fontWeight:700,letterSpacing:2,marginBottom:12,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Founding Member Offer</div>
+        <div style={{fontSize:28,fontWeight:900,color:theme.text,fontFamily:"'Playfair Display',serif",lineHeight:1.2,marginBottom:16}}>6 months completely free.<br/>No card. No commitment.</div>
+        <div style={{color:theme.textMuted,fontSize:15,maxWidth:520,margin:"0 auto",lineHeight:1.7}}>We're building the UK's best fishing venue directory. The first 50 fisheries get 6 months free — full listing, all features, no cost.</div>
+      </div>
+      <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.warning}44`,borderRadius:20,padding:28}}>
+        <div style={{fontSize:18,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif",marginBottom:4}}>Claim Your Founding Member Spot</div>
+        <div style={{fontSize:14,color:theme.textMuted,marginBottom:24}}>We'll be in touch within 48 hours to get your fishery live.</div>
+        {status==="success"?(
+          <div style={{textAlign:"center",padding:"32px 0"}}>
+            <div style={{fontSize:48,marginBottom:12}}>🎣</div>
+            <div style={{fontSize:20,fontWeight:800,color:theme.accent,fontFamily:"'Playfair Display',serif",marginBottom:8}}>You're a founding member</div>
+            <div style={{color:theme.textMuted,fontSize:14}}>We'll be in touch within 48 hours. Welcome to Reel Big Fish.</div>
+          </div>
+        ):(
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>YOUR NAME *</div><input value={form.name} onChange={e=>set("name",e.target.value)} placeholder="John Smith" style={inp}/></div>
+              <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>EMAIL *</div><input value={form.email} onChange={e=>set("email",e.target.value)} placeholder="john@fishery.co.uk" style={inp}/></div>
+            </div>
+            <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>FISHERY NAME *</div><input value={form.fishery} onChange={e=>set("fishery",e.target.value)} placeholder="e.g. Riverside Fishery" style={inp}/></div>
+            <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>REGION</div><select value={form.region} onChange={e=>set("region",e.target.value)} style={{...inp,cursor:"pointer"}}><option value="">Select region...</option>{regions.map(r=><option key={r} value={r}>{r}</option>)}</select></div>
+            <div><div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:6}}>TELL US ABOUT YOUR FISHERY</div><textarea value={form.message} onChange={e=>set("message",e.target.value)} placeholder="Type of fishing, species, what makes your venue special..." rows={4} style={{...inp,resize:"vertical"}}/></div>
+            <button onClick={submit} disabled={!form.name||!form.email||!form.fishery||status==="loading"} style={{background:(!form.name||!form.email||!form.fishery)?theme.border:theme.warning,color:(!form.name||!form.email||!form.fishery)?theme.textMuted:"#000",border:"none",borderRadius:12,padding:16,cursor:"pointer",fontFamily:"inherit",fontWeight:800,fontSize:15}}>{status==="loading"?"Sending...":"Claim My Free 6 Months →"}</button>
+            {status==="error"&&<div style={{color:theme.danger,fontSize:13,textAlign:"center"}}>Something went wrong. Please try again.</div>}
+            <div style={{fontSize:12,color:theme.textMuted,textAlign:"center"}}>No credit card · No commitment · 6 months completely free</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// HOME PAGE
+function HomePage({setTab}){
+  const [postcode,setPostcode]=useState("");
+  const [forecast,setForecast]=useState(null);
+  const [locationName,setLocationName]=useState("");
+  const [loading,setLoading]=useState(false);
+  const rc=(r)=>r==="Excellent"?theme.excellent:r==="Good"?theme.good:r==="Fair"?theme.fair:theme.poor;
+
+  const quickForecast=async()=>{
+    const clean=postcode.trim().toUpperCase().replace(/\s+/g,"");
+    if(!clean)return;
+    setLoading(true);
+    try{
+      const pc=await fetch(`https://api.postcodes.io/postcodes/${clean}`);
+      const pd=await pc.json();
+      if(pd.status!==200)throw new Error();
+      const{latitude:lat,longitude:lng,admin_county,admin_district}=pd.result;
+      setLocationName(admin_county||admin_district||clean);
+      const wx=await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,windspeed_10m_max,surface_pressure_max&timezone=Europe%2FLondon&forecast_days=3`);
+      const wd=await wx.json();
+      const d=wd.daily;
+      const names=["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
+      const days=d.time.map((dt,i)=>{
+        const avg=Math.round((d.temperature_2m_max[i]+d.temperature_2m_min[i])/2);
+        const wind=Math.round(d.windspeed_10m_max[i]);
+        const rain=d.precipitation_sum[i];
+        const pres=d.surface_pressure_max[i];
+        const trend=i===0?"Stable":pres>d.surface_pressure_max[i-1]+1.5?"Rising":pres<d.surface_pressure_max[i-1]-1.5?"Falling":"Stable";
+        let score=5;
+        if(avg>=12&&avg<=17)score+=2;else if(avg>=9)score+=1;else score-=1;
+        if(wind<10)score+=1.5;else if(wind<20)score+=0.5;else score-=1.5;
+        if(rain===0)score+=0.5;else if(rain<3)score+=0.2;else if(rain<8)score-=1;else score-=2.5;
+        if(trend==="Rising")score+=1.2;else if(trend==="Falling")score-=1;
+        score=Math.min(10,Math.max(1,Math.round(score*10)/10));
+        const rating=score>=8?"Excellent":score>=6.5?"Good":score>=4.5?"Fair":"Poor";
+        const date=new Date(dt);
+        return{day:i===0?"Today":i===1?"Tomorrow":names[date.getDay()],score,rating,temp:avg,rain};
+      });
+      setForecast(days);
+    }catch{}
+    setLoading(false);
+  };
+
+  return(
+    <div>
+      <div style={{background:`linear-gradient(180deg,#0a1a0e 0%,${theme.bg} 100%)`,borderBottom:`1px solid ${theme.border}`,padding:"60px 24px 56px",textAlign:"center",position:"relative"}}>
+        <div style={{position:"absolute",inset:0,backgroundImage:`radial-gradient(circle at 50% 100%,${theme.accent}08 0%,transparent 60%)`,pointerEvents:"none"}}/>
+        <div style={{position:"relative",maxWidth:700,margin:"0 auto"}}>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,background:theme.accent+"22",border:`1px solid ${theme.accent}44`,borderRadius:20,padding:"4px 16px",fontSize:12,color:theme.accent,fontWeight:700,letterSpacing:1,marginBottom:24,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Now on Amazon</div>
+          <h1 style={{fontFamily:"'Playfair Display',serif",fontSize:"clamp(34px,5vw,58px)",fontWeight:900,color:theme.text,lineHeight:1.1,letterSpacing:-1,marginBottom:20}}>Your fishing diary.<br/><span style={{color:theme.accent,fontStyle:"italic"}}>Smarter online.</span></h1>
+          <p style={{color:theme.textMuted,fontSize:17,lineHeight:1.7,maxWidth:500,margin:"0 auto 36px",fontWeight:300}}>Log every session. Track every catch. Let the AI reveal the patterns that help you catch more fish.</p>
+          <div style={{display:"flex",gap:12,justifyContent:"center",flexWrap:"wrap"}}>
+            <button onClick={()=>setTab("diary")} style={{background:theme.accent,color:"#000",border:"none",borderRadius:12,padding:"14px 32px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:16}}>Start Your Diary →</button>
+            <button onClick={()=>setTab("forecast")} style={{background:"none",border:`1px solid ${theme.border}`,borderRadius:12,padding:"14px 32px",cursor:"pointer",fontFamily:"inherit",fontWeight:600,fontSize:16,color:theme.textMuted}}>Check Forecast</button>
+          </div>
+        </div>
+      </div>
+
+      <div style={{background:theme.surface,borderBottom:`1px solid ${theme.border}`,padding:"48px 24px"}}>
+        <div style={{maxWidth:900,margin:"0 auto",display:"flex",gap:48,alignItems:"center",flexWrap:"wrap"}}>
+          <div style={{flex:1,minWidth:280}}>
+            <div style={{fontSize:11,color:theme.accent,fontWeight:700,letterSpacing:2,marginBottom:12,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>Physical Diary + Digital Platform</div>
+            <div style={{fontSize:24,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif",lineHeight:1.2,marginBottom:16}}>Have the Reel Big Fish diary?</div>
+            <p style={{color:theme.textMuted,fontSize:15,lineHeight:1.8,marginBottom:24}}>Use the physical diary on the bank, then log your sessions here for AI analysis and long-term pattern tracking.</p>
+            {[["1","Buy the diary on Amazon and use it on the bank"],["2","Log your sessions here after each trip"],["3","The AI analyses your patterns over time"]].map(([n,t],i)=>(
+              <div key={i} style={{display:"flex",alignItems:"center",gap:14,marginBottom:12}}>
+                <div style={{width:28,height:28,borderRadius:"50%",background:theme.accent+"33",border:`1px solid ${theme.accent}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:800,color:theme.accent,flexShrink:0}}>{n}</div>
+                <div style={{color:theme.text,fontSize:14}}>{t}</div>
+              </div>
+            ))}
+            <a href="https://www.amazon.co.uk" target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:8,background:theme.warning,color:"#000",borderRadius:12,padding:"12px 24px",textDecoration:"none",fontWeight:700,fontSize:14,fontFamily:"inherit",marginTop:8}}>Buy on Amazon →</a>
+          </div>
+          <div style={{flex:1,minWidth:260,textAlign:"center"}}>
+            <img src="https://raw.githubusercontent.com/fourshireswindows-png/reelbigfish/main/cover.jpg" alt="Reel Big Fish Fishing Diary" style={{width:"100%",maxWidth:280,borderRadius:12,boxShadow:"0 20px 60px rgba(0,0,0,0.5)",border:`1px solid ${theme.border}`}}/>
+            <div style={{marginTop:16,background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:12,padding:"12px 16px",maxWidth:280,margin:"16px auto 0",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div style={{fontSize:13,color:theme.textMuted}}>Available now on Amazon</div>
+              <div style={{fontSize:18,fontWeight:900,color:theme.accent}}>£9.99</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{padding:"48px 24px",maxWidth:900,margin:"0 auto"}}>
+        <div style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:20,padding:28}}>
+          <div style={{fontSize:16,fontWeight:700,color:theme.text,marginBottom:4,fontFamily:"'Playfair Display',serif"}}>Check conditions before your next session</div>
+          <div style={{color:theme.textMuted,fontSize:13,marginBottom:16}}>Enter your postcode for a 3-day fishing forecast</div>
+          <div style={{display:"flex",gap:10}}>
+            <input value={postcode} onChange={e=>setPostcode(e.target.value)} onKeyDown={e=>e.key==="Enter"&&quickForecast()} placeholder="e.g. GL7 1AA" style={{flex:1,background:theme.surface,border:`1px solid ${theme.border}`,borderRadius:10,padding:"11px 14px",color:theme.text,fontSize:14,fontFamily:"inherit",outline:"none"}}/>
+            <button onClick={quickForecast} disabled={loading} style={{background:loading?theme.border:theme.accent,color:loading?theme.textMuted:"#000",border:"none",borderRadius:10,padding:"11px 20px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14,whiteSpace:"nowrap"}}>{loading?"...":"Check →"}</button>
+          </div>
+          {forecast&&(
+            <div style={{marginTop:16}}>
+              <div style={{fontSize:11,color:theme.textMuted,fontWeight:700,letterSpacing:1,marginBottom:10,fontFamily:"DM Mono,monospace",textTransform:"uppercase"}}>3-Day Forecast — {locationName}</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+                {forecast.map((d,i)=>(
+                  <div key={i} style={{background:theme.surface,borderRadius:12,padding:"14px 10px",textAlign:"center",border:`1px solid ${rc(d.rating)}33`}}>
+                    <div style={{fontSize:12,fontWeight:600,color:theme.textMuted,marginBottom:6}}>{d.day}</div>
+                    <div style={{fontSize:28,fontWeight:900,color:rc(d.rating)}}>{d.score}</div>
+                    <div style={{fontSize:11,color:rc(d.rating),fontWeight:700,marginTop:2}}>{d.rating}</div>
+                    <div style={{fontSize:11,color:theme.textMuted,marginTop:4}}>{d.temp}°C {d.rain>0?"🌧️":"☀️"}</div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={()=>setTab("forecast")} style={{width:"100%",marginTop:12,background:"none",border:`1px solid ${theme.border}`,borderRadius:10,padding:10,color:theme.textMuted,cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:600}}>View full 7-day forecast →</button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{background:theme.surface,borderTop:`1px solid ${theme.border}`,borderBottom:`1px solid ${theme.border}`,padding:"48px 24px"}}>
+        <div style={{maxWidth:900,margin:"0 auto"}}>
+          <div style={{textAlign:"center",marginBottom:28}}>
+            <div style={{fontSize:22,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif",marginBottom:6}}>Everything else. All free.</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
+            {[{id:"forecast",icon:"🌤️",title:"Live Forecast",body:"Real fishing score for your exact postcode.",color:theme.water},{id:"chat",icon:"🤖",title:"AI Fishing Guide",body:"Ask anything — rigs, bait, species, regs.",color:theme.purple},{id:"forum",icon:"💬",title:"Fishing Forum",body:"10 sub-forums for every type of UK fishing.",color:theme.good}].map((f,i)=>(
+              <div key={i} onClick={()=>setTab(f.id)} style={{background:theme.surfaceAlt,border:`1px solid ${theme.border}`,borderRadius:14,padding:20,cursor:"pointer"}}>
+                <div style={{fontSize:26,marginBottom:10}}>{f.icon}</div>
+                <div style={{fontWeight:700,color:theme.text,fontSize:15,marginBottom:6}}>{f.title}</div>
+                <div style={{color:theme.textMuted,fontSize:13,lineHeight:1.6}}>{f.body}</div>
+                <div style={{color:f.color,fontSize:12,fontWeight:700,marginTop:10}}>Open →</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div style={{background:theme.surface,borderTop:`1px solid ${theme.border}`,padding:"36px 24px"}}>
+        <div style={{maxWidth:900,margin:"0 auto",display:"flex",alignItems:"center",justifyContent:"space-between",gap:24,flexWrap:"wrap"}}>
+          <div>
+            <div style={{fontSize:17,fontWeight:800,color:theme.text,fontFamily:"'Playfair Display',serif",marginBottom:4}}>Do you run a fishery?</div>
+            <div style={{color:theme.textMuted,fontSize:14}}>Get listed free for 6 months — no card, no commitment.</div>
+          </div>
+          <button onClick={()=>setTab("list")} style={{background:theme.warning,color:"#000",border:"none",borderRadius:12,padding:"12px 24px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:14,whiteSpace:"nowrap"}}>List Your Fishery →</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// MAIN APP
+function ReelBigFishApp(){
+  const [tab,setTab]=useState("home");
+  const tabs=[{id:"home",label:"Home"},{id:"diary",label:"My Diary"},{id:"forecast",label:"Forecast"},{id:"chat",label:"AI Guide"},{id:"forum",label:"Forum"},{id:"community",label:"Community"},{id:"report",label:"Report"},{id:"list",label:"List Your Fishery"}];
+
+  return(
+    <div style={{minHeight:"100vh",background:theme.bg,fontFamily:"'DM Sans','Segoe UI',sans-serif",color:theme.text}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,700;0,800;0,900;1,700&family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0;}
+        @keyframes pulse{0%,100%{opacity:.3;transform:scale(.8)}50%{opacity:1;transform:scale(1)}}
+        button:hover{filter:brightness(1.1);}
+      `}</style>
+      <div style={{background:theme.surface,borderBottom:`1px solid ${theme.border}`,padding:"14px 24px",display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:100}}>
+        <div onClick={()=>setTab("home")} style={{display:"flex",alignItems:"center",gap:12,cursor:"pointer"}}>
+          <div style={{width:38,height:38,borderRadius:10,background:`linear-gradient(135deg,${theme.accent},${theme.water})`,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:13,color:"#000"}}>RBF</div>
+          <div>
+            <div style={{fontFamily:"'Playfair Display',serif",fontWeight:900,fontSize:19,color:theme.text,letterSpacing:-0.5}}>Reel Big Fish</div>
+            <div style={{fontSize:10,color:theme.textMuted,marginTop:-2}}>The UK's Free Fishing Platform</div>
+          </div>
+        </div>
+        <button onClick={()=>setTab("diary")} style={{background:theme.accent,color:"#000",border:"none",borderRadius:10,padding:"8px 16px",cursor:"pointer",fontFamily:"inherit",fontWeight:700,fontSize:12,whiteSpace:"nowrap"}}>My Diary</button>
+      </div>
+      <div style={{background:theme.surface,borderBottom:`1px solid ${theme.border}`,padding:"0 24px",display:"flex",gap:4,overflowX:"auto"}}>
+        {tabs.map(t=>(
+          <button key={t.id} onClick={()=>setTab(t.id)} style={{background:"none",border:"none",borderBottom:`2px solid ${tab===t.id?theme.accent:"transparent"}`,color:t.id==="list"?theme.warning:tab===t.id?theme.accent:theme.textMuted,padding:"13px 15px",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:600,transition:"all 0.2s",whiteSpace:"nowrap"}}>{t.label}</button>
+        ))}
+      </div>
+      <div style={{maxWidth:tab==="home"?"100%":900,margin:"0 auto",padding:tab==="home"?0:24}}>
+        {tab==="home"&&<HomePage setTab={setTab}/>}
+        {tab==="diary"&&<DiaryTab/>}
+        {tab==="forecast"&&<ForecastTab/>}
+        {tab==="chat"&&<ChatTab/>}
+        {tab==="forum"&&<ForumTab/>}
+        {tab==="community"&&<CommunityTab/>}
+        {tab==="report"&&<ReportTab/>}
+        {tab==="list"&&<ListYourFisheryTab/>}
+      </div>
+    </div>
+  );
+}
+
+const root=ReactDOM.createRoot(document.getElementById('root'));
+root.render(React.createElement(ReelBigFishApp));
+</script>
+</body>
 </html>
