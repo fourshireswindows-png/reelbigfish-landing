@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>RBF Admin</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800;900&family=DM+Sans:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+    :root{
+      --bg:#0a0f0d;--s1:#111a14;--s2:#162019;--border:#1e3024;
+      --accent:#2dd87a;--water:#1a9cc7;--warn:#d4a72c;--danger:#c0392b;
+      --text:#e8f0ea;--muted:#7a9a82;--purple:#a78bfa;
+    }
+    body{background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;min-height:100vh;}
+    ::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+
+    /* LOGIN */
+    .login-wrap{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:24px;}
+    .login-box{background:var(--s1);border:1px solid var(--border);border-radius:20px;padding:40px;width:100%;max-width:400px;}
+    .login-logo{display:flex;align-items:center;gap:12px;margin-bottom:32px;}
+    .login-mark{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--accent),var(--water));display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:900;font-size:14px;color:#000;}
+    .login-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:900;color:var(--text);}
+    .login-sub{font-size:11px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace;letter-spacing:1px;text-transform:uppercase;}
+    .field-label{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px;display:block;}
+    .field-input{width:100%;background:var(--s2);border:1px solid var(--border);border-radius:10px;padding:12px 16px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:14px;outline:none;margin-bottom:14px;}
+    .field-input:focus{border-color:var(--accent);}
+    .btn-primary{width:100%;background:var(--accent);color:#000;border:none;border-radius:12px;padding:14px;font-family:'DM Sans',sans-serif;font-weight:700;font-size:15px;cursor:pointer;}
+    .btn-primary:hover{filter:brightness(1.1);}
+    .error-msg{color:var(--danger);font-size:13px;margin-top:8px;text-align:center;}
+
+    /* DASHBOARD */
+    .dash{display:none;}
+    .topbar{background:var(--s1);border-bottom:1px solid var(--border);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+    .topbar-left{display:flex;align-items:center;gap:12px;}
+    .topbar-mark{width:36px;height:36px;border-radius:10px;background:linear-gradient(135deg,var(--accent),var(--water));display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-weight:900;font-size:12px;color:#000;}
+    .topbar-name{font-family:'Playfair Display',serif;font-weight:900;font-size:18px;color:var(--text);}
+    .topbar-badge{background:var(--danger);color:#fff;border-radius:20px;padding:3px 10px;font-size:11px;font-weight:700;font-family:'DM Mono',monospace;}
+    .signout-btn{background:none;border:1px solid var(--border);border-radius:8px;padding:7px 14px;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:12px;}
+    
+    .content{max-width:1100px;margin:0 auto;padding:28px 24px;}
+    
+    .section-title{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:1.5px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:16px;}
+    
+    /* STAT CARDS */
+    .stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px;}
+    @media(max-width:768px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+    .stat-card{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;}
+    .stat-card.accent{border-color:rgba(45,216,122,.3);background:rgba(45,216,122,.06);}
+    .stat-card.water{border-color:rgba(26,156,199,.3);background:rgba(26,156,199,.06);}
+    .stat-card.warn{border-color:rgba(212,167,44,.3);background:rgba(212,167,44,.06);}
+    .stat-card.purple{border-color:rgba(167,139,250,.3);background:rgba(167,139,250,.06);}
+    .stat-label{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1.2px;text-transform:uppercase;font-family:'DM Mono',monospace;margin-bottom:8px;}
+    .stat-value{font-size:36px;font-weight:900;font-family:'Playfair Display',serif;line-height:1;}
+    .stat-value.accent{color:var(--accent);}
+    .stat-value.water{color:var(--water);}
+    .stat-value.warn{color:var(--warn);}
+    .stat-value.purple{color:var(--purple);}
+    .stat-sub{font-size:12px;color:var(--muted);margin-top:6px;}
+
+    /* CHART */
+    .chart-section{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:28px;}
+    .chart-wrap{display:flex;align-items:flex-end;gap:6px;height:120px;margin-top:16px;}
+    .chart-bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+    .chart-bar{width:100%;border-radius:4px 4px 0 0;background:var(--accent);opacity:.7;transition:opacity .2s;min-height:2px;}
+    .chart-bar:hover{opacity:1;}
+    .chart-label{font-size:9px;color:var(--muted);font-family:'DM Mono',monospace;white-space:nowrap;}
+
+    /* TWO COL */
+    .two-col{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:28px;}
+    @media(max-width:768px){.two-col{grid-template-columns:1fr;}}
+    .panel{background:var(--s1);border:1px solid var(--border);border-radius:16px;padding:20px;}
+
+    /* TABLE */
+    .table-wrap{overflow-x:auto;}
+    table{width:100%;border-collapse:collapse;}
+    th{font-size:10px;color:var(--muted);font-weight:700;letter-spacing:1px;text-transform:uppercase;font-family:'DM Mono',monospace;padding:0 12px 10px;text-align:left;}
+    td{padding:10px 12px;font-size:13px;color:var(--text);border-top:1px solid var(--border);}
+    tr:hover td{background:var(--s2);}
+    .badge{display:inline-block;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700;}
+    .badge-green{background:rgba(45,216,122,.15);color:var(--accent);}
+    .badge-blue{background:rgba(26,156,199,.15);color:var(--water);}
+
+    /* REGION LIST */
+    .region-row{display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid var(--border);}
+    .region-row:last-child{border-bottom:none;}
+    .region-name{flex:1;font-size:13px;color:var(--text);}
+    .region-bar-track{width:100px;height:4px;background:var(--border);border-radius:4px;}
+    .region-bar{height:100%;border-radius:4px;background:var(--accent);}
+    .region-count{font-size:13px;font-weight:700;color:var(--accent);min-width:20px;text-align:right;}
+
+    /* LOADING */
+    .loading{display:flex;align-items:center;justify-content:center;height:200px;color:var(--muted);font-size:14px;gap:8px;}
+    .spinner{width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .6s linear infinite;}
+    @keyframes spin{to{transform:rotate(360deg);}}
+    @keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+    .fade-in{animation:fadeIn .4s ease both;}
+  </style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-mark">RBF</div>
+      <div>
+        <div class="login-title">Reel Big Fish</div>
+        <div class="login-sub">Admin Dashboard</div>
+      </div>
+    </div>
+    <label class="field-label">Email</label>
+    <input class="field-input" type="email" id="adminEmail" placeholder="your@email.com"/>
+    <label class="field-label">Password</label>
+    <input class="field-input" type="password" id="adminPassword" placeholder="••••••••" onkeydown="if(event.key==='Enter')login()"/>
+    <button class="btn-primary" onclick="login()">Sign In →</button>
+    <div class="error-msg" id="loginError"></div>
+  </div>
+</div>
+
+<!-- DASHBOARD -->
+<div class="dash" id="dashboard">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-mark">RBF</div>
+      <div>
+        <div class="topbar-name">Admin Dashboard</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="topbar-badge">ADMIN</span>
+      <button class="signout-btn" onclick="signOut()">Sign Out</button>
+    </div>
+  </div>
+
+  <div class="content">
+    <div id="dashContent">
+      <div class="loading"><div class="spinner"></div> Loading data...</div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://iefnatpzvjoczbrqsytj.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImllZm5hdHB6dmpvY3picnFzeXRqIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg0Mjg5NzcsImV4cCI6MjA5NDAwNDk3N30.8KrXplbByNasfkBL6ruHslOfVQJb8-wfpWxRuj8zFTw";
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// Your admin email — only this account can see the dashboard
+const ADMIN_EMAIL = "fourshireswindows@gmail.com";
+
+async function login(){
+  const email = document.getElementById("adminEmail").value.trim();
+  const password = document.getElementById("adminPassword").value;
+  document.getElementById("loginError").textContent = "";
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if(error){ document.getElementById("loginError").textContent = error.message; return; }
+  if(email.toLowerCase() !== ADMIN_EMAIL.toLowerCase()){
+    await sb.auth.signOut();
+    document.getElementById("loginError").textContent = "Access denied.";
+    return;
+  }
+  showDashboard();
+}
+
+async function signOut(){
+  await sb.auth.signOut();
+  document.getElementById("dashboard").style.display = "none";
+  document.getElementById("loginScreen").style.display = "flex";
+}
+
+async function showDashboard(){
+  document.getElementById("loginScreen").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
+  await loadData();
+}
+
+async function loadData(){
+  const [profilesRes, sessionsRes] = await Promise.all([
+    sb.from("profiles").select("*"),
+    sb.from("sessions").select("*")
+  ]);
+
+  const profiles = profilesRes.data || [];
+  const sessions = sessionsRes.data || [];
+
+  const now = new Date();
+  const weekAgo = new Date(now - 7*24*60*60*1000);
+  const monthAgo = new Date(now - 30*24*60*60*1000);
+
+  const newThisWeek = profiles.filter(p => new Date(p.created_at) > weekAgo).length;
+  const newThisMonth = profiles.filter(p => new Date(p.created_at) > monthAgo).length;
+  const sessionsThisWeek = sessions.filter(s => new Date(s.created_at) > weekAgo).length;
+  const totalFish = sessions.reduce((a,s) => a+(s.total_fish||0), 0);
+
+  // Sessions per day for last 14 days
+  const days = [];
+  for(let i=13; i>=0; i--){
+    const d = new Date(now - i*24*60*60*1000);
+    const label = d.toLocaleDateString("en-GB",{weekday:"short",day:"numeric"});
+    const count = sessions.filter(s => {
+      const sd = new Date(s.created_at);
+      return sd.toDateString() === d.toDateString();
+    }).length;
+    days.push({label, count});
+  }
+  const maxDay = Math.max(...days.map(d=>d.count), 1);
+
+  // Regions
+  const regionCount = {};
+  profiles.forEach(p => { if(p.region){ regionCount[p.region] = (regionCount[p.region]||0)+1; }});
+  const topRegions = Object.entries(regionCount).sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const maxRegion = topRegions[0]?.[1] || 1;
+
+  // Top species
+  const speciesCount = {};
+  sessions.forEach(s => (s.catches||[]).forEach(c => { if(c.species){ speciesCount[c.species]=(speciesCount[c.species]||0)+1; }}));
+  const topSpecies = Object.entries(speciesCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Recent members
+  const recentMembers = [...profiles].sort((a,b)=>new Date(b.created_at)-new Date(a.created_at)).slice(0,10);
+
+  // Active users (logged a session in last 30 days)
+  const activeUserIds = new Set(sessions.filter(s=>new Date(s.created_at)>monthAgo).map(s=>s.user_id));
+
+  document.getElementById("dashContent").innerHTML = `
+    <div class="fade-in">
+      <!-- Stats -->
+      <div class="section-title">Overview</div>
+      <div class="stats-grid">
+        <div class="stat-card accent">
+          <div class="stat-label">Total Members</div>
+          <div class="stat-value accent">${profiles.length}</div>
+          <div class="stat-sub">+${newThisMonth} this month</div>
+        </div>
+        <div class="stat-card water">
+          <div class="stat-label">New This Week</div>
+          <div class="stat-value water">${newThisWeek}</div>
+          <div class="stat-sub">Signed up last 7 days</div>
+        </div>
+        <div class="stat-card warn">
+          <div class="stat-label">Sessions Logged</div>
+          <div class="stat-value warn">${sessions.length}</div>
+          <div class="stat-sub">${sessionsThisWeek} this week</div>
+        </div>
+        <div class="stat-card purple">
+          <div class="stat-label">Total Fish</div>
+          <div class="stat-value purple">${totalFish}</div>
+          <div class="stat-sub">${activeUserIds.size} active users</div>
+        </div>
+      </div>
+
+      <!-- Sessions chart -->
+      <div class="chart-section">
+        <div class="section-title">Sessions Logged — Last 14 Days</div>
+        <div class="chart-wrap">
+          ${days.map(d=>`
+            <div class="chart-bar-wrap">
+              <div class="chart-bar" style="height:${Math.max(2, Math.round((d.count/maxDay)*100))}%;opacity:${d.count>0?'0.8':'0.2'};" title="${d.count} sessions"></div>
+              <div class="chart-label">${d.label.split(' ')[0]}</div>
+            </div>
+          `).join('')}
+        </div>
+      </div>
+
+      <!-- Two col -->
+      <div class="two-col">
+        <!-- Regions -->
+        <div class="panel">
+          <div class="section-title">Members by Region</div>
+          ${topRegions.length ? topRegions.map(([region,count])=>`
+            <div class="region-row">
+              <div class="region-name">${region}</div>
+              <div class="region-bar-track"><div class="region-bar" style="width:${Math.round((count/maxRegion)*100)}%"></div></div>
+              <div class="region-count">${count}</div>
+            </div>
+          `).join('') : '<div style="color:var(--muted);font-size:13px;margin-top:8px;">No region data yet</div>'}
+        </div>
+
+        <!-- Top species -->
+        <div class="panel">
+          <div class="section-title">Top Species Caught</div>
+          ${topSpecies.length ? topSpecies.map(([species,count],i)=>`
+            <div class="region-row">
+              <div style="width:20px;height:20px;border-radius:50%;background:rgba(45,216,122,.15);border:1px solid rgba(45,216,122,.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:800;color:var(--accent);flex-shrink:0;">${i+1}</div>
+              <div class="region-name">${species}</div>
+              <div class="region-count">${count}</div>
+            </div>
+          `).join('') : '<div style="color:var(--muted);font-size:13px;margin-top:8px;">No catches logged yet</div>'}
+        </div>
+      </div>
+
+      <!-- Recent members table -->
+      <div class="panel" style="margin-bottom:28px;">
+        <div class="section-title">Recent Members</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Username</th><th>Region</th><th>Favourite Species</th><th>Joined</th></tr></thead>
+            <tbody>
+              ${recentMembers.map(p=>`
+                <tr>
+                  <td><strong>${p.username||'—'}</strong></td>
+                  <td>${p.region||'—'}</td>
+                  <td>${(p.fav_species||[]).slice(0,3).map(s=>`<span class="badge badge-green">${s}</span>`).join(' ')||'—'}</td>
+                  <td style="color:var(--muted)">${new Date(p.created_at).toLocaleDateString("en-GB")}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- All sessions summary -->
+      <div class="panel">
+        <div class="section-title">Platform Stats</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:8px;">
+          <div style="background:var(--s2);border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:24px;font-weight:900;color:var(--accent);font-family:'Playfair Display',serif;">${sessions.filter(s=>s.blank).length}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Blank sessions</div>
+          </div>
+          <div style="background:var(--s2);border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:24px;font-weight:900;color:var(--water);font-family:'Playfair Display',serif;">${sessions.length>0?Math.round(sessions.reduce((a,s)=>a+(s.session_rating||0),0)/sessions.filter(s=>s.session_rating>0).length*10)/10||'—':'—'}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Avg session rating</div>
+          </div>
+          <div style="background:var(--s2);border-radius:12px;padding:16px;text-align:center;">
+            <div style="font-size:24px;font-weight:900;color:var(--warn);font-family:'Playfair Display',serif;">${sessions.length>0?Math.round(totalFish/sessions.filter(s=>!s.blank).length*10)/10||'—':'—'}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Avg fish per session</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// Check if already logged in
+sb.auth.getSession().then(({data:{session}})=>{
+  if(session?.user?.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()){
+    showDashboard();
+  }
+});
+</script>
+</body>
+</html>
