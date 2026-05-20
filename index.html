@@ -3,15 +3,62 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Reel Big Fish</title>
-    <meta name="description" content="The UK fishing companion app. Log sessions, track forecasts, chat with the community." />
-    <meta name="theme-color" content="#4CAF82" />
+
+    <!-- Primary SEO -->
+    <title>Reel Big Fish | Free UK Fishing Diary App & Angling Community</title>
+    <meta name="description" content="Reel Big Fish is the UK's free fishing diary app. Log your catches, track personal bests, get AI fishing advice, check your fishing forecast and connect with UK anglers. Also available as a printed diary on Amazon." />
+    <meta name="keywords" content="fishing diary, UK fishing app, fishing log, catch tracker, carp fishing diary, coarse fishing log, fishing session record, UK angling app, fishing community, fishing forecast, personal best fishing, fishing diary UK" />
+    <meta name="author" content="Reel Big Fish" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://reelbigfish.co.uk" />
+
+    <!-- Open Graph (Facebook, TikTok, WhatsApp) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://reelbigfish.co.uk" />
+    <meta property="og:title" content="Reel Big Fish | Free UK Fishing Diary App" />
+    <meta property="og:description" content="Log your catches, track personal bests, get AI fishing advice and connect with UK anglers. Free to join. Also available as a printed diary on Amazon." />
+    <meta property="og:image" content="https://reelbigfish.co.uk/icon-192.png" />
+    <meta property="og:site_name" content="Reel Big Fish" />
+    <meta property="og:locale" content="en_GB" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Reel Big Fish | Free UK Fishing Diary App" />
+    <meta name="twitter:description" content="Log your catches, track personal bests, get AI fishing advice and connect with UK anglers. Free to join." />
+    <meta name="twitter:image" content="https://reelbigfish.co.uk/icon-192.png" />
+
+    <!-- PWA -->
+    <meta name="theme-color" content="#00e676" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Reel Big Fish" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/icon-192.png" />
+
+    <!-- Structured Data -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Reel Big Fish",
+      "url": "https://reelbigfish.co.uk",
+      "description": "The UK's free fishing diary app. Log catches, track personal bests, get AI fishing advice and connect with UK anglers.",
+      "applicationCategory": "SportsApplication",
+      "operatingSystem": "Any",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "GBP"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Reel Big Fish",
+        "url": "https://reelbigfish.co.uk"
+      }
+    }
+    </script>
+
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
@@ -19,9 +66,28 @@
         });
       }
     </script>
-    <script type="module" crossorigin src="/assets/index-CbUSuSBx.js"></script>
   </head>
   <body>
+    <!-- SEO crawlable content readable by Google even without JavaScript -->
+    <noscript>
+      <div style="font-family:sans-serif;max-width:800px;margin:0 auto;padding:20px;">
+        <h1>Reel Big Fish — Free UK Fishing Diary App</h1>
+        <p>Reel Big Fish is the UK's free online fishing diary and angling community. Log your fishing sessions, track your catches and personal bests, get AI-powered fishing advice, check your fishing forecast and connect with UK anglers.</p>
+        <h2>Features</h2>
+        <ul>
+          <li>Online fishing diary — log every session with catches, weather, venue and conditions</li>
+          <li>Personal best tracker — automatically tracks your PBs by species</li>
+          <li>AI fishing guide — ask anything about rigs, bait, species and UK regulations</li>
+          <li>Fishing forecast — get a fishing score for your location</li>
+          <li>Social feed — follow other anglers and share your catches</li>
+          <li>Annual catch report — see your full season at a glance</li>
+        </ul>
+        <h2>Also available as a printed diary</h2>
+        <p>The Reel Big Fish Fishing Diary is available on Amazon. Log sessions on paper and sync to the app using the QR code on the back cover.</p>
+        <p>Visit <a href="https://reelbigfish.co.uk">reelbigfish.co.uk</a> to join free.</p>
+        <p>Built for UK anglers. Based in Chipping Norton, Oxfordshire.</p>
+      </div>
+    </noscript>
     <div id="root"></div>
   </body>
 </html>
